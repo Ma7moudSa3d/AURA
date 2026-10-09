@@ -1,0 +1,58 @@
+{
+  "nav": { "shop": "Shop", "about": "Our Story", "contact": "Contact", "faq": "FAQ", "account": "Account", "login": "Sign in", "logout": "Sign out", "cart": "Cart", "whatsapp": "Chat on WhatsApp" },
+  "home": {
+    "eyebrow": "Eau de Parfum",
+    "title": "The essence of presence",
+    "subtitle": "Rare ingredients. Quiet confidence. Fragrances composed to be remembered.",
+    "cta": "Discover the collection",
+    "featured": "Signature Selection",
+    "promise1": "Concentrated EDP", "promise1d": "Long-lasting, richly layered compositions.",
+    "promise2": "Delivered with care", "promise2d": "Gift-ready packaging across Egypt.",
+    "promise3": "Pay your way", "promise3d": "InstaPay or mobile wallet transfer."
+  },
+  "shop": {
+    "title": "The Collection", "search": "Search fragrances", "collection": "Collection", "gender": "For",
+    "all": "All", "unisex": "Unisex", "men": "Men", "women": "Women", "price": "Price", "min": "Min", "max": "Max",
+    "bestsellers": "Best sellers", "instock": "In stock only", "sort": "Sort",
+    "featured": "Featured", "priceAsc": "Price: low to high", "priceDesc": "Price: high to low", "newest": "Newest", "best": "Best sellers",
+    "apply": "Apply", "none": "No fragrances match your filters."
+  },
+  "product": {
+    "addToCart": "Add to cart", "soldOut": "Sold out", "lowStock": "Only {n} left", "notes": "Fragrance pyramid",
+    "top": "Top notes", "heart": "Heart notes", "base": "Base notes", "reviews": "Reviews", "noReviews": "No reviews yet.",
+    "writeReview": "Write a review", "submitReview": "Submit (moderated)", "waMsg": "Hello AURA, I'm interested in {name}."
+  },
+  "cart": { "title": "Your cart", "empty": "Your cart is empty.", "subtotal": "Subtotal", "checkout": "Checkout", "remove": "Remove", "continue": "Continue shopping", "note": "Shipping and discounts are calculated at checkout." },
+  "checkout": {
+    "title": "Checkout", "shipping": "Shipping details", "fullName": "Full name", "phone": "Phone", "address1": "Address line 1", "address2": "Address line 2 (optional)",
+    "city": "City", "notes": "Order notes (optional)", "payment": "Payment", "payInstructions": "Pay via InstaPay or Mobile Wallet to:",
+    "proofHelp": "After transferring, provide the transaction reference number OR upload a screenshot of the payment.",
+    "txn": "Transaction reference ID", "proof": "Payment screenshot", "coupon": "Coupon code (optional)", "place": "Place order",
+    "placing": "Placing order...", "proofRequired": "Provide a transaction reference or upload a payment screenshot.",
+    "shippingFee": "Shipping", "free": "Free", "total": "Total", "next": "Continue to payment", "back": "Back"
+  },
+  "success": { "title": "Thank you", "orderId": "Order ID", "pending": "Pending payment verification", "msg": "We'll verify your transfer and confirm shortly. A confirmation email is on its way.", "track": "Track order" },
+  "account": { "title": "My account", "profile": "Profile", "orders": "Order history", "save": "Save", "none": "No orders yet.", "view": "View" },
+  "track": { "title": "Order tracking", "enter": "Order ID", "find": "Track", "notFound": "Order not found.", "status": "Status" },
+  "status": { "PENDING_PAYMENT_VERIFICATION": "Pending payment verification", "PAID": "Paid", "CONFIRMED": "Confirmed", "SHIPPED": "Shipped", "DELIVERED": "Delivered", "CANCELED": "Canceled", "REFUNDED": "Refunded" },
+  "auth": {
+    "loginTitle": "Welcome back", "signupTitle": "Create your account", "email": "Email", "password": "Password", "name": "Full name",
+    "login": "Sign in", "signup": "Create account", "forgot": "Forgot password?", "noAccount": "New to AURA?", "haveAccount": "Already a member?",
+    "reset": "Send reset link", "resetTitle": "Reset password", "newPassword": "New password", "update": "Update password",
+    "verify": "Check your email to verify your account.", "resetSent": "If the email exists, a reset link has been sent.", "error": "Something went wrong. Please try again."
+  },
+  "footer": { "rights": "All rights reserved.", "shipping": "Shipping & Returns", "privacy": "Privacy", "terms": "Terms", "tag": "Eau de Parfum, composed in Egypt." },
+  "pages": {
+    "contactTitle": "Contact", "contactBody": "We'd love to hear from you. Reach us on WhatsApp or by email.",
+    "faqTitle": "FAQ",
+    "faq": [
+      { "q": "How do I pay?", "a": "Transfer via InstaPay or a mobile wallet to the number shown at checkout, then add your transaction reference or a screenshot." },
+      { "q": "When is my order confirmed?", "a": "After we verify your transfer, usually within a few hours." },
+      { "q": "Do you ship across Egypt?", "a": "Yes, nationwide. Shipping is free above the threshold shown at checkout." }
+    ],
+    "shippingTitle": "Shipping & Returns", "shippingBody": "Orders ship within 1–2 business days after payment is verified. Unopened products can be returned within 7 days of delivery. Contact us on WhatsApp to arrange a return.",
+    "privacyTitle": "Privacy Policy", "privacyBody": "We collect only what is needed to process your order (name, contact details, address, payment reference). We never sell your data. Payment screenshots are stored privately and visible only to you and the store owner.",
+    "termsTitle": "Terms of Service", "termsBody": "By placing an order you confirm your details are accurate. Orders are confirmed once payment is verified. Prices are in EGP."
+  },
+  "common": { "currency": "EGP", "loading": "Loading...", "language": "العربية" }
+}

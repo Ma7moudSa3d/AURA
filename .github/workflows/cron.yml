@@ -1,0 +1,13 @@
+name: abandoned-cart-reminders
+on:
+  schedule:
+    - cron: "0 9 * * *"   # daily 09:00 UTC (free)
+  workflow_dispatch:
+jobs:
+  call:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger reminders
+        run: |
+          curl -fsS -X POST "${{ secrets.SITE_URL }}/api/cron/abandoned-carts" \
+            -H "Authorization: Bearer ${{ secrets.CRON_TOKEN }}"
