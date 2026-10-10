@@ -79,15 +79,22 @@ export async function updateProfile(fd: FormData): Promise<Res> {
 
 export async function adminPasswordStep(fd: FormData): Promise<Res> {
   const p = cred.safeParse({ email: fd.get("email"), password: fd.get("password") });
-  if (!p.success) return { ok: false, error: "INVALID" };
-  if (!rateLimit(`admin-login:${ip()}`, 5, 15 * 60_000)) return { ok: false, error: "RATE_LIMITED" };
+  if (!p.success) return { ok: false, error: "BAD_FORMAT" }; // email invalid or password < 8 chars
+  if (!rateLimit(`admin-login:${ip()}`, 10, 15 * 60_000)) return { ok: false, error: "RATE_LIMITED" };
   // Generic failure for non-owner so the allowlist is not revealed
-  if (p.data.email.toLowerCase() !== OWNER_EMAIL) return { ok: false, error: "INVALID" };
+  const email = p.data.email.toLowerCase();
+  if (email !== OWNER_EMAIL) return { ok: false, error: "INVALID" };
   const sb = supabaseServer();
-  const { error } = await sb.auth.signInWithPassword(p.data);
-  if (error) return { ok: false, error: "INVALID" };
+  const { error } = await sb.auth.signInWithPassword({ email, password: p.data.password });
+  if (error) {
+    console.error("[admin-login] password step:", error.message);
+    return { ok: false, error: /not confirmed/i.test(error.message) ? "NOT_CONFIRMED" : "INVALID" };
+  }
   const { error: otpErr } = await sb.auth.signInWithOtp({ email: OWNER_EMAIL, options: { shouldCreateUser: false } });
-  if (otpErr) return { ok: false, error: "OTP_FAILED" };
+  if (otpErr) {
+    console.error("[admin-login] otp step:", otpErr.message);
+    return { ok: false, error: /rate limit/i.test(otpErr.message) ? "EMAIL_RATE_LIMIT" : "OTP_FAILED" };
+  }
   return { ok: true, info: "OTP_SENT" };
 }
 
