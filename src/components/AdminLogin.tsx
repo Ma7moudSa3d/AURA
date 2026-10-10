@@ -38,10 +38,18 @@ export default function AdminLogin({ initialStep }: { initialStep: Step }) {
         {step === "password" ? "Owner sign-in · 1/3" : step === "otp" ? "Email code · 2/3" : "Authenticator · 3/3"}
       </p>
 
-      {step === "password" && (
+            {step === "password" && (
         <form className="space-y-4" action={(fd) => start(async () => {
           setErr(null); const r = await adminPasswordStep(fd);
-          if (r.ok) setStep("otp"); else setErr("Invalid credentials or rate limited.");
+          if (r.ok) setStep("otp");
+          else setErr(({
+            BAD_FORMAT: "Enter a valid email and a password of at least 8 characters.",
+            INVALID: "Wrong email or password (or this account does not exist yet: sign up first at /signup).",
+            NOT_CONFIRMED: "Email not confirmed. Open the verification email from signup, or confirm the user in Supabase → Authentication → Users.",
+            RATE_LIMITED: "Too many attempts. Wait 15 minutes and try again.",
+            EMAIL_RATE_LIMIT: "Supabase email rate limit reached. Wait an hour or set up custom SMTP.",
+            OTP_FAILED: "Password OK, but the email code could not be sent. Check Supabase logs / email settings.",
+          } as Record<string, string>)[r.error ?? ""] ?? "Login failed.");
         })}>
           <input name="email" type="email" required placeholder="Email" className="input" autoComplete="username" />
           <input name="password" type="password" required minLength={8} placeholder="Password" className="input" autoComplete="current-password" />
