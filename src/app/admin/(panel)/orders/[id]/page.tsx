@@ -51,51 +51,27 @@ export default function AdminOrderDetailPage() {
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [status, setStatus] = useState<string>('pending');
   const [adminNote, setAdminNote] = useState<string>('');
-  const [paymentProofUrlInput, setPaymentProofUrlInput] = useState<string>('');
-  const [resolvedImageUrl, setResolvedImageUrl] = useState<string>('');
+  const [imageUrl, setImageUrl] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showProofModal, setShowProofModal] = useState<boolean>(false);
   const [showEditProofModal, setShowEditProofModal] = useState<boolean>(false);
 
-  // Helper to generate a valid/signed image URL from Supabase Storage
-  const resolveProofUrl = async (data: OrderDetail): Promise<string> => {
-    if (data.payment_proof_url && data.payment_proof_url.startsWith('http')) {
-      return data.payment_proof_url;
+  // بناء رابط صورة إثبات الدفع تلقائياً
+  const buildPublicImageUrl = (rawPath?: string | null, rawUrl?: string | null): string => {
+    const val = (rawUrl || rawPath || '').trim();
+    if (!val) return '';
+
+    // إذا كان الرابط مكتمل بالكامل
+    if (val.startsWith('http://') || val.startsWith('https://')) {
+      return val;
     }
 
-    const path = data.payment_proof_path || data.payment_proof_url;
-    if (!path) return '';
+    // تنظيف اسم الملف من أي مسارات زايدة
+    const cleanFileName = val.replace(/^payment-proofs\//, '').replace(/^\//, '');
 
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-      return path;
-    }
-
-    const cleanPath = path.trim();
-
-    // Try creating signed URL (works even if bucket is private)
-    const buckets = ['payment-proofs', 'payment_proofs', 'proofs'];
-    for (const bucket of buckets) {
-      try {
-        const { data: signedData } = await supabase.storage
-          .from(bucket)
-          .createSignedUrl(cleanPath, 3600);
-
-        if (signedData?.signedUrl) {
-          return signedData.signedUrl;
-        }
-      } catch (err) {
-        console.error(`Bucket ${bucket} signed URL error:`, err);
-      }
-    }
-
-    // Fallback to getPublicUrl
-    const { data: pubData } = supabase.storage
-      .from('payment-proofs')
-      .getPublicUrl(cleanPath);
-
-    return pubData?.publicUrl || '';
+    return `${supabaseUrl}/storage/v1/object/public/payment-proofs/${cleanFileName}`;
   };
 
   useEffect(() => {
@@ -126,9 +102,8 @@ export default function AdminOrderDetailPage() {
         setStatus(data.status || 'pending');
         setAdminNote(data.admin_note || '');
 
-        const imgUrl = await resolveProofUrl(data);
-        setResolvedImageUrl(imgUrl);
-        setPaymentProofUrlInput(imgUrl);
+        const computedUrl = buildPublicImageUrl(data.payment_proof_path, data.payment_proof_url);
+        setImageUrl(computedUrl);
       }
       setLoading(false);
     }
@@ -141,8 +116,6 @@ export default function AdminOrderDetailPage() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const activeProofUrl = resolvedImageUrl || paymentProofUrlInput;
-
   const handleSave = async () => {
     if (!orderId) return;
     setSaving(true);
@@ -152,7 +125,7 @@ export default function AdminOrderDetailPage() {
       .update({
         status: status,
         admin_note: adminNote,
-        payment_proof_url: paymentProofUrlInput || null,
+        payment_proof_url: imageUrl || null,
       })
       .eq('id', orderId);
 
@@ -167,18 +140,9 @@ export default function AdminOrderDetailPage() {
           ...order,
           status,
           admin_note: adminNote,
-          payment_proof_url: paymentProofUrlInput || null,
+          payment_proof_url: imageUrl || null,
         });
-        setResolvedImageUrl(paymentProofUrlInput);
       }
-    }
-  };
-
-  const handleViewProof = () => {
-    if (activeProofUrl && activeProofUrl.trim() !== '') {
-      setShowProofModal(true);
-    } else {
-      setShowEditProofModal(true);
     }
   };
 
@@ -332,11 +296,17 @@ export default function AdminOrderDetailPage() {
           <div className="pt-2">
             <button
               type="button"
-              onClick={handleViewProof}
+              onClick={() => {
+                if (imageUrl) {
+                  setShowProofModal(true);
+                } else {
+                  setShowEditProofModal(true);
+                }
+              }}
               className="w-full py-3 border border-amber-500/60 text-amber-400 hover:bg-amber-500/10 uppercase tracking-widest text-xs transition flex items-center justify-center gap-2"
             >
               📷 VIEW PAYMENT PROOF
-              {activeProofUrl && (
+              {imageUrl && (
                 <span className="w-2 h-2 rounded-full bg-green-500 inline-block"></span>
               )}
             </button>
@@ -359,10 +329,10 @@ export default function AdminOrderDetailPage() {
             </div>
 
             <div className="flex justify-center bg-black/40 p-2 rounded border border-white/5 min-h-[200px] items-center">
-              {activeProofUrl ? (
+              {imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={activeProofUrl}
+                  src={imageUrl}
                   alt="Payment Proof"
                   className="max-h-[60vh] object-contain rounded"
                 />
@@ -382,9 +352,9 @@ export default function AdminOrderDetailPage() {
                 Change / Edit Proof Link
               </button>
               <div className="flex gap-2">
-                {activeProofUrl && (
+                {imageUrl && (
                   <a
-                    href={activeProofUrl}
+                    href={imageUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="px-4 py-2 border border-white/20 text-xs uppercase tracking-wider rounded hover:bg-white/10"
@@ -404,7 +374,7 @@ export default function AdminOrderDetailPage() {
         </div>
       )}
 
-      {/* Modal 2: Add/Edit Image Link */}
+      {/* Modal 2: Edit Proof Link */}
       {showEditProofModal && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-white/10 rounded-lg max-w-md w-full p-6 space-y-4">
@@ -419,16 +389,14 @@ export default function AdminOrderDetailPage() {
             </div>
 
             <p className="text-xs text-white/70">
-              {activeProofUrl
-                ? 'Update the URL for the payment proof image:'
-                : 'No payment proof image is currently attached. Paste an image URL below:'}
+              Paste or edit the direct URL for the payment proof image:
             </p>
 
             <input
               type="url"
               placeholder="https://..."
-              value={paymentProofUrlInput}
-              onChange={(e) => setPaymentProofUrlInput(e.target.value)}
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
               className="w-full bg-black/50 border border-white/20 p-3 text-sm text-white rounded focus:outline-none focus:border-amber-500"
             />
 
@@ -444,7 +412,7 @@ export default function AdminOrderDetailPage() {
                 onClick={async () => {
                   await handleSave();
                   setShowEditProofModal(false);
-                  if (paymentProofUrlInput) {
+                  if (imageUrl) {
                     setShowProofModal(true);
                   }
                 }}
