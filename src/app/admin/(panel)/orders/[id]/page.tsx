@@ -52,24 +52,50 @@ export default function AdminOrderDetailPage() {
   const [status, setStatus] = useState<string>('pending');
   const [adminNote, setAdminNote] = useState<string>('');
   const [paymentProofUrlInput, setPaymentProofUrlInput] = useState<string>('');
+  const [resolvedImageUrl, setResolvedImageUrl] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showProofModal, setShowProofModal] = useState<boolean>(false);
   const [showEditProofModal, setShowEditProofModal] = useState<boolean>(false);
 
-  // Helper to build full URL from payment_proof_path if needed
-  const getFullImageUrl = (data: OrderDetail): string => {
+  // Helper to generate a valid/signed image URL from Supabase Storage
+  const resolveProofUrl = async (data: OrderDetail): Promise<string> => {
     if (data.payment_proof_url && data.payment_proof_url.startsWith('http')) {
       return data.payment_proof_url;
     }
-    if (data.payment_proof_path) {
-      if (data.payment_proof_path.startsWith('http')) {
-        return data.payment_proof_path;
-      }
-      return `https://qjwisnczaffrouaadqzg.supabase.co/storage/v1/object/public/payment-proofs/${data.payment_proof_path}`;
+
+    const path = data.payment_proof_path || data.payment_proof_url;
+    if (!path) return '';
+
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
     }
-    return '';
+
+    const cleanPath = path.trim();
+
+    // Try creating signed URL (works even if bucket is private)
+    const buckets = ['payment-proofs', 'payment_proofs', 'proofs'];
+    for (const bucket of buckets) {
+      try {
+        const { data: signedData } = await supabase.storage
+          .from(bucket)
+          .createSignedUrl(cleanPath, 3600);
+
+        if (signedData?.signedUrl) {
+          return signedData.signedUrl;
+        }
+      } catch (err) {
+        console.error(`Bucket ${bucket} signed URL error:`, err);
+      }
+    }
+
+    // Fallback to getPublicUrl
+    const { data: pubData } = supabase.storage
+      .from('payment-proofs')
+      .getPublicUrl(cleanPath);
+
+    return pubData?.publicUrl || '';
   };
 
   useEffect(() => {
@@ -99,7 +125,10 @@ export default function AdminOrderDetailPage() {
         setOrder(data);
         setStatus(data.status || 'pending');
         setAdminNote(data.admin_note || '');
-        setPaymentProofUrlInput(getFullImageUrl(data));
+
+        const imgUrl = await resolveProofUrl(data);
+        setResolvedImageUrl(imgUrl);
+        setPaymentProofUrlInput(imgUrl);
       }
       setLoading(false);
     }
@@ -112,7 +141,7 @@ export default function AdminOrderDetailPage() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const activeProofUrl = (order ? getFullImageUrl(order) : '') || paymentProofUrlInput;
+  const activeProofUrl = resolvedImageUrl || paymentProofUrlInput;
 
   const handleSave = async () => {
     if (!orderId) return;
@@ -140,6 +169,7 @@ export default function AdminOrderDetailPage() {
           admin_note: adminNote,
           payment_proof_url: paymentProofUrlInput || null,
         });
+        setResolvedImageUrl(paymentProofUrlInput);
       }
     }
   };
