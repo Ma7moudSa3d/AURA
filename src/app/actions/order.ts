@@ -255,14 +255,62 @@ export async function createOrder(formData: FormData) {
 
     // 11. Fire-and-forget email notification to admin
     // (does not block the response)
-    await sendOrderEmail({
-      orderId: newOrder.id,
-      customerName: customer_name,
-      phone: customer_phone,
-      total,
-      address: address_line1,
-      city,
+    async function sendOrderEmail({
+  orderId,
+  customerName,
+  phone,
+  total,
+  address,
+  city,
+}: {
+  orderId: string;
+  customerName: string;
+  phone: string;
+  total: number;
+  address: string;
+  city: string;
+}) {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) {
+    console.error("BREVO_API_KEY is missing in Vercel Environment Variables!");
+    return;
+  }
+
+  try {
+    const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "api-key": apiKey,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        sender: { name: "AURA Perfumes", email: "ofoftot@gmail.com" },
+        to: [{ email: "ofoftot@gmail.com", name: "AURA Admin" }],
+        subject: `🚨 طلب جديد في AURA – ${total} EGP (#${orderId.slice(0, 8)})`,
+        htmlContent: `
+          <div style="font-family:sans-serif;padding:24px;background:#0a0a0a;color:#D6B25E;max-width:560px;margin:0 auto;">
+            <h2 style="margin:0 0 16px;font-size:22px;">✨ وصلك طلب جديد!</h2>
+            <p><strong>رقم الطلب:</strong> ${orderId}</p>
+            <p><strong>الاسم:</strong> ${customerName}</p>
+            <p><strong>الهاتف:</strong> ${phone}</p>
+            <p><strong>العنوان:</strong> ${address}, ${city}</p>
+            <p><strong>الإجمالي:</strong> ${total} EGP</p>
+          </div>
+        `,
+      }),
     });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Brevo Email Error Response:", res.status, errText);
+    } else {
+      console.log("Order email sent successfully via Brevo!");
+    }
+  } catch (err) {
+    console.error("Failed to send order email:", err);
+  }
+}
 
     // 12. Success
     return { ok: true as const, orderId: newOrder.id };
