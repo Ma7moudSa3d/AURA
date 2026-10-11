@@ -272,7 +272,7 @@ export async function createOrder(formData: FormData) {
 }) {
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) {
-    console.error("BREVO_API_KEY is missing in Vercel Environment Variables!");
+    console.error("❌ BREVO_API_KEY is missing in Vercel!");
     return;
   }
 
@@ -285,30 +285,33 @@ export async function createOrder(formData: FormData) {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        sender: { name: "AURA Perfumes", email: "ofoftot@gmail.com" },
+        // استخدام الإيميل المفعل المباشر في حسابك بـ Brevo
+        sender: { name: "AURA Store", email: "mahmoudmohammedsaad72@gmail.com" },
         to: [{ email: "ofoftot@gmail.com", name: "AURA Admin" }],
         subject: `🚨 طلب جديد في AURA – ${total} EGP (#${orderId.slice(0, 8)})`,
         htmlContent: `
-          <div style="font-family:sans-serif;padding:24px;background:#0a0a0a;color:#D6B25E;max-width:560px;margin:0 auto;">
-            <h2 style="margin:0 0 16px;font-size:22px;">✨ وصلك طلب جديد!</h2>
-            <p><strong>رقم الطلب:</strong> ${orderId}</p>
-            <p><strong>الاسم:</strong> ${customerName}</p>
-            <p><strong>الهاتف:</strong> ${phone}</p>
-            <p><strong>العنوان:</strong> ${address}, ${city}</p>
-            <p><strong>الإجمالي:</strong> ${total} EGP</p>
+          <div style="font-family:sans-serif;padding:24px;background:#0a0a0a;color:#D6B25E;max-width:560px;margin:0 auto;border:1px solid #222;">
+            <h2 style="margin:0 0 16px;font-size:22px;">✨ وصلك طلب جديد في AURA!</h2>
+            <p style="color:#fff;"><strong>رقم الطلب:</strong> ${orderId}</p>
+            <p style="color:#fff;"><strong>اسم العميل:</strong> ${customerName}</p>
+            <p style="color:#fff;"><strong>الهاتف:</strong> ${phone}</p>
+            <p style="color:#fff;"><strong>العنوان:</strong> ${address}, ${city}</p>
+            <p style="color:#fff;"><strong>الإجمالي:</strong> ${total} EGP</p>
+            <hr style="border:none;border-top:1px solid #333;margin:20px 0;"/>
+            <p style="margin:0;"><a href="https://aura-perfume-weld.vercel.app/admin/orders" style="color:#D6B25E;text-decoration:none;font-weight:bold;">اضغط هنا لمعاينة الطلب والإيصال في لوحة التحكم ←</a></p>
           </div>
         `,
       }),
     });
 
+    const resData = await res.json();
     if (!res.ok) {
-      const errText = await res.text();
-      console.error("Brevo Email Error Response:", res.status, errText);
+      console.error("❌ Brevo Rejected Email:", resData);
     } else {
-      console.log("Order email sent successfully via Brevo!");
+      console.log("✅ Order Email Sent Successfully!", resData);
     }
   } catch (err) {
-    console.error("Failed to send order email:", err);
+    console.error("❌ Error sending order email:", err);
   }
 }
 
