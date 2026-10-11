@@ -2,7 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://qjwisnczaffrouaadqzg.supabase.co';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 type OrderItem = {
   id: string;
@@ -47,8 +51,6 @@ export default function AdminOrderDetailPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showProofModal, setShowProofModal] = useState<boolean>(false);
   const [showEditProofModal, setShowEditProofModal] = useState<boolean>(false);
-
-  const supabase = createClient();
 
   useEffect(() => {
     if (!orderId) return;
@@ -309,10 +311,6 @@ export default function AdminOrderDetailPage() {
                   src={activeProofUrl}
                   alt="Payment Proof"
                   className="max-h-[60vh] object-contain rounded"
-                  onError={() => {
-                    alert('Could not preview image directly. Opening in new tab...');
-                    window.open(activeProofUrl, '_blank');
-                  }}
                 />
               ) : (
                 <p className="text-white/50">No image available</p>
