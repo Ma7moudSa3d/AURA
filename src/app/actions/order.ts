@@ -4,7 +4,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { getUser } from "@/lib/data";
 
 // ──────────────────────────────────────────────
-// Helper: Send order notification email via Brevo
+// Helper: Send order notification email via Brevo API
 // ──────────────────────────────────────────────
 async function sendOrderEmail({
   orderId,
@@ -23,12 +23,12 @@ async function sendOrderEmail({
 }) {
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) {
-    console.warn("BREVO_API_KEY is missing – skipping email notification.");
+    console.error("❌ BREVO_API_KEY is missing in Vercel Environment Variables!");
     return;
   }
 
   try {
-    await fetch("https://api.brevo.com/v3/smtp/email", {
+    const res = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {
         accept: "application/json",
@@ -36,34 +36,32 @@ async function sendOrderEmail({
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        sender: { name: "AURA Perfumes", email: "ofoftot@gmail.com" },
-        to: [
-          { email: "ofoftot@gmail.com", name: "AURA Admin" },
-        ],
+        sender: { name: "AURA Store", email: "ofoftot@gmail.com" },
+        to: [{ email: "ofoftot@gmail.com", name: "AURA Admin" }],
         subject: `🚨 طلب جديد في AURA – ${total} EGP (#${orderId.slice(0, 8)})`,
         htmlContent: `
-          <div style="font-family:sans-serif;padding:24px;background:#0a0a0a;color:#D6B25E;max-width:560px;margin:0 auto;">
-            <h2 style="margin:0 0 16px;font-size:22px;">✨ وصلك طلب جديد!</h2>
-            <table style="width:100%;border-collapse:collapse;color:#f5f0e8;font-size:14px;">
-              <tr><td style="padding:6px 0;opacity:.6;">رقم الطلب</td><td style="padding:6px 0;font-family:monospace;">${orderId}</td></tr>
-              <tr><td style="padding:6px 0;opacity:.6;">الاسم</td><td style="padding:6px 0;">${customerName}</td></tr>
-              <tr><td style="padding:6px 0;opacity:.6;">الهاتف</td><td style="padding:6px 0;" dir="ltr">${phone}</td></tr>
-              <tr><td style="padding:6px 0;opacity:.6;">العنوان</td><td style="padding:6px 0;">${address}, ${city}</td></tr>
-              <tr><td style="padding:6px 0;opacity:.6;">الإجمالي</td><td style="padding:6px 0;font-weight:bold;color:#D6B25E;">${total} EGP</td></tr>
-            </table>
-            <hr style="border:none;border-top:1px solid #222;margin:20px 0;" />
-            <p style="margin:0;font-size:13px;opacity:.7;">
-              ادخل على لوحة التحكم 
-              <a href="https://aura-perfume-weld.vercel.app/admin/orders" style="color:#D6B25E;">/admin/orders</a>
-              لمعاينة صورة إيصال الدفع والموافقة على الطلب.
-            </p>
+          <div style="font-family:sans-serif;padding:24px;background:#0a0a0a;color:#D6B25E;max-width:560px;margin:0 auto;border:1px solid #222;">
+            <h2 style="margin:0 0 16px;font-size:22px;">✨ وصلك طلب جديد في AURA!</h2>
+            <p style="color:#fff;"><strong>رقم الطلب:</strong> ${orderId}</p>
+            <p style="color:#fff;"><strong>اسم العميل:</strong> ${customerName}</p>
+            <p style="color:#fff;"><strong>الهاتف:</strong> ${phone}</p>
+            <p style="color:#fff;"><strong>العنوان:</strong> ${address}, ${city}</p>
+            <p style="color:#fff;"><strong>الإجمالي:</strong> ${total} EGP</p>
+            <hr style="border:none;border-top:1px solid #333;margin:20px 0;"/>
+            <p style="margin:0;"><a href="https://aura-perfume-weld.vercel.app/admin/orders" style="color:#D6B25E;text-decoration:none;font-weight:bold;">اضغط هنا لمعاينة الطلب والإيصال في لوحة التحكم ←</a></p>
           </div>
         `,
       }),
     });
+
+    const resData = await res.json();
+    if (!res.ok) {
+      console.error("❌ Brevo Email Failed:", resData);
+    } else {
+      console.log("✅ Brevo Email Sent Successfully!", resData);
+    }
   } catch (err) {
-    // Never block the order if email fails
-    console.error("Failed to send order email:", err);
+    console.error("❌ Error sending order email:", err);
   }
 }
 
@@ -166,7 +164,6 @@ export async function createOrder(formData: FormData) {
         .maybeSingle();
 
       if (!couponData) {
-        // Real bad coupon typed by user
         return { ok: false as const, error: "BAD_COUPON" };
       }
 
@@ -199,8 +196,6 @@ export async function createOrder(formData: FormData) {
 
       if (uploadErr) {
         console.error("Proof upload error:", uploadErr);
-        // Don't fail the whole order just because the image failed –
-        // still save the transaction_reference_id
       } else if (uploadData) {
         payment_proof_path = uploadData.path;
       }
@@ -250,70 +245,17 @@ export async function createOrder(formData: FormData) {
     const { error: itemsErr } = await sb.from("order_items").insert(itemsToInsert);
     if (itemsErr) {
       console.error("Order items insert error:", itemsErr);
-      // Order already created – don't roll back, just log
     }
 
-    // 11. Fire-and-forget email notification to admin
-    // (does not block the response)
-    async function sendOrderEmail({
-  orderId,
-  customerName,
-  phone,
-  total,
-  address,
-  city,
-}: {
-  orderId: string;
-  customerName: string;
-  phone: string;
-  total: number;
-  address: string;
-  city: string;
-}) {
-  const apiKey = process.env.BREVO_API_KEY;
-  if (!apiKey) {
-    console.error("❌ BREVO_API_KEY is missing in Vercel!");
-    return;
-  }
-
-  try {
-    const res = await fetch("https://api.brevo.com/v3/smtp/email", {
-      method: "POST",
-      headers: {
-        accept: "application/json",
-        "api-key": apiKey,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        // استخدام الإيميل المفعل المباشر في حسابك بـ Brevo
-        sender: { name: "AURA Store", email: "mahmoudmohammedsaad72@gmail.com" },
-        to: [{ email: "ofoftot@gmail.com", name: "AURA Admin" }],
-        subject: `🚨 طلب جديد في AURA – ${total} EGP (#${orderId.slice(0, 8)})`,
-        htmlContent: `
-          <div style="font-family:sans-serif;padding:24px;background:#0a0a0a;color:#D6B25E;max-width:560px;margin:0 auto;border:1px solid #222;">
-            <h2 style="margin:0 0 16px;font-size:22px;">✨ وصلك طلب جديد في AURA!</h2>
-            <p style="color:#fff;"><strong>رقم الطلب:</strong> ${orderId}</p>
-            <p style="color:#fff;"><strong>اسم العميل:</strong> ${customerName}</p>
-            <p style="color:#fff;"><strong>الهاتف:</strong> ${phone}</p>
-            <p style="color:#fff;"><strong>العنوان:</strong> ${address}, ${city}</p>
-            <p style="color:#fff;"><strong>الإجمالي:</strong> ${total} EGP</p>
-            <hr style="border:none;border-top:1px solid #333;margin:20px 0;"/>
-            <p style="margin:0;"><a href="https://aura-perfume-weld.vercel.app/admin/orders" style="color:#D6B25E;text-decoration:none;font-weight:bold;">اضغط هنا لمعاينة الطلب والإيصال في لوحة التحكم ←</a></p>
-          </div>
-        `,
-      }),
+    // 11. 🔥 استدعاء دالة الإيميل والانتظار لحين الإرسال!
+    await sendOrderEmail({
+      orderId: newOrder.id,
+      customerName: customer_name,
+      phone: customer_phone,
+      total,
+      address: address_line1,
+      city,
     });
-
-    const resData = await res.json();
-    if (!res.ok) {
-      console.error("❌ Brevo Rejected Email:", resData);
-    } else {
-      console.log("✅ Order Email Sent Successfully!", resData);
-    }
-  } catch (err) {
-    console.error("❌ Error sending order email:", err);
-  }
-}
 
     // 12. Success
     return { ok: true as const, orderId: newOrder.id };
