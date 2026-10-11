@@ -1,88 +1,152 @@
 "use server";
-import { z } from "zod";
-import { randomUUID } from "crypto";
-import { supabaseServer, supabaseService } from "@/lib/supabase/server";
-import { rateLimit } from "@/lib/rate-limit";
-import { sendEmail, orderEmailHtml, OWNER, type OrderEmailData } from "@/lib/email";
 
-const schema = z.object({
-  customer_name: z.string().trim().min(2).max(100),
-  customer_phone: z.string().trim().regex(/^[+0-9\s-]{8,20}$/),
-  address_line1: z.string().trim().min(3).max(200),
-  address_line2: z.string().trim().max(200).optional().or(z.literal("")),
-  city: z.string().trim().min(2).max(80),
-  notes: z.string().trim().max(500).optional().or(z.literal("")),
-  transaction_reference_id: z.string().trim().max(80).optional().or(z.literal("")),
-  coupon: z.string().trim().max(40).optional().or(z.literal("")),
-  items: z.array(z.object({ product_id: z.string().uuid(), qty: z.number().int().min(1).max(20) })).min(1).max(30),
-});
+import { supabaseServer } from "@/lib/supabase/server";
+import { getUser } from "@/lib/data";
 
-const MAX_PROOF = 5 * 1024 * 1024;
-const TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
-
-export async function createOrder(fd: FormData): Promise<{ ok: true; orderId: string } | { ok: false; error: string }> {
-  const sb = supabaseServer();
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user || !user.email) return { ok: false, error: "AUTH_REQUIRED" };
-  if (!rateLimit(`order:${user.id}`, 5, 10 * 60_000)) return { ok: false, error: "RATE_LIMITED" };
-
-  let parsed;
+export async function createOrder(formData: FormData) {
   try {
-    parsed = schema.parse({
-      customer_name: fd.get("customer_name"), customer_phone: fd.get("customer_phone"),
-      address_line1: fd.get("address_line1"), address_line2: fd.get("address_line2") ?? "",
-      city: fd.get("city"), notes: fd.get("notes") ?? "",
-      transaction_reference_id: fd.get("transaction_reference_id") ?? "", coupon: fd.get("coupon") ?? "",
-      items: JSON.parse(String(fd.get("items") ?? "[]")),
-    });
-  } catch { return { ok: false, error: "INVALID_INPUT" }; }
+    const user = await getUser();
+    if (!user) return { ok: false, error: "AUTH_REQUIRED" };
 
-  // Merge duplicate product lines
-  const merged = new Map<string, number>();
-  for (const i of parsed.items) merged.set(i.product_id, Math.min(20, (merged.get(i.product_id) ?? 0) + i.qty));
-  const items = [...merged].map(([product_id, qty]) => ({ product_id, qty }));
+    const customer_name = (formData.get("customer_name") as string)?.trim();
+    const customer_phone = (formData.get("customer_phone") as string)?.trim();
+    const address_line1 = (formData.get("address_line1") as string)?.trim();
+    const address_line2 = (formData.get("address_line2") as string)?.trim() || null;
+    const city = (formData.get("city") as string)?.trim();
+    const notes = (formData.get("notes") as string)?.trim() || null;
+    const transaction_reference_id = (formData.get("transaction_reference_id") as string)?.trim() || null;
+    
+    // الحل هنا: تجاهل الكوبون تماماً لو فارغ أو مسافات فقط
+    const couponRaw = (formData.get("coupon") as string)?.trim();
+    const itemsRaw = formData.get("items") as string;
+    const file = formData.get("payment_proof") as File | null;
 
-  // Payment proof (optional if txn ref given)
-  let proofPath: string | null = null;
-  const file = fd.get("payment_proof");
-  if (file instanceof File && file.size > 0) {
-    const ext = TYPES[file.type];
-    if (!ext || file.size > MAX_PROOF) return { ok: false, error: "INVALID_FILE" };
-    proofPath = `${user.id}/${randomUUID()}.${ext}`;
-    const { error } = await sb.storage.from("payment-proofs").upload(proofPath, file, { contentType: file.type });
-    if (error) return { ok: false, error: "UPLOAD_FAILED" };
-  }
-  if (!parsed.transaction_reference_id && !proofPath) return { ok: false, error: "PROOF_REQUIRED" };
-
-  const svc = supabaseService();
-  const { data: orderId, error } = await svc.rpc("create_order", {
-    p_user_id: user.id, p_email: user.email, p_name: parsed.customer_name, p_phone: parsed.customer_phone,
-    p_address1: parsed.address_line1, p_address2: parsed.address_line2 || null, p_city: parsed.city,
-    p_notes: parsed.notes || null, p_txn_ref: parsed.transaction_reference_id || null,
-    p_proof_path: proofPath, p_coupon: parsed.coupon || null, p_items: items,
-  });
-  if (error || !orderId) {
-    if (proofPath) await svc.storage.from("payment-proofs").remove([proofPath]);
-    const m = error?.message ?? "";
-    return { ok: false, error: m.includes("insufficient stock") ? "OUT_OF_STOCK" : m.includes("coupon") ? "BAD_COUPON" : "ORDER_FAILED" };
-  }
-
-  // Emails (never block the order on mail failure)
-  try {
-    const { data: o } = await svc.from("orders").select("*, order_items(*)").eq("id", orderId).single();
-    if (o) {
-      let proof_url: string | null = null;
-      if (o.payment_proof_path) {
-        const s = await svc.storage.from("payment-proofs").createSignedUrl(o.payment_proof_path, 7 * 24 * 3600);
-        proof_url = s.data?.signedUrl ?? null;
-      }
-      const data: OrderEmailData = { ...o, items: o.order_items, proof_url };
-      await Promise.allSettled([
-        sendEmail(OWNER, `New AURA order ${o.id.slice(0, 8).toUpperCase()} — ${o.total} EGP`, orderEmailHtml(data, true)),
-        sendEmail(o.customer_email, "Your AURA order confirmation", orderEmailHtml(data, false)),
-      ]);
+    if (!transaction_reference_id && (!file || file.size === 0)) {
+      return { ok: false, error: "PROOF_REQUIRED" };
     }
-  } catch (e) { console.error("order email failed", e); }
 
-  return { ok: true, orderId };
+    const items: { product_id: string; qty: number }[] = JSON.parse(itemsRaw || "[]");
+    if (items.length === 0) return { ok: false, error: "EMPTY_CART" };
+
+    const sb = supabaseServer();
+
+    // 1. حساب أسعار المنتجات المباشرة
+    const productIds = items.map((i) => i.product_id);
+    const { data: products } = await sb
+      .from("products")
+      .select("id, price, discount_price")
+      .in("id", productIds);
+
+    if (!products || products.length === 0) {
+      return { ok: false, error: "INVALID_PRODUCTS" };
+    }
+
+    const productMap = new Map(products.map((p) => [p.id, p]));
+    let subtotal = 0;
+    const orderItemsData = [];
+
+    for (const item of items) {
+      const prod = productMap.get(item.product_id);
+      if (!prod) continue;
+      const price = Number(prod.discount_price ?? prod.price);
+      subtotal += price * item.qty;
+      orderItemsData.push({
+        product_id: item.product_id,
+        qty: item.qty,
+        price: price,
+      });
+    }
+
+    // مصاريف الشحن
+    const { data: settings } = await sb
+      .from("settings")
+      .select("shipping_fee, free_shipping_threshold")
+      .eq("id", 1)
+      .maybeSingle();
+
+    const shippingFee = Number(settings?.shipping_fee ?? 60);
+    const freeThreshold = Number(settings?.free_shipping_threshold ?? 2000);
+    const shipCost = subtotal >= freeThreshold ? 0 : shippingFee;
+
+    // 2. فحص الكوبون فقط إذا تم إدخال نص حقيقي
+    let discount = 0;
+    let couponCode: string | null = null;
+
+    if (couponRaw && couponRaw.length > 0) {
+      const { data: couponData } = await sb
+        .from("coupons")
+        .select("*")
+        .ilike("code", couponRaw)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (!couponData) {
+        return { ok: false, error: "BAD_COUPON" };
+      }
+
+      couponCode = couponData.code;
+      const percent = Number(couponData.discount_percent ?? 0);
+      discount = (subtotal * percent) / 100;
+    }
+
+    // 3. رفع صورة الإيصال
+    let payment_proof_path: string | null = null;
+    if (file && file.size > 0) {
+      const ext = file.name.split(".").pop() || "jpg";
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+      const buffer = await file.arrayBuffer();
+      const { data: uploadData, error: uploadErr } = await sb.storage
+        .from("receipts")
+        .upload(fileName, buffer, { contentType: file.type });
+
+      if (!uploadErr && uploadData) {
+        payment_proof_path = uploadData.path;
+      }
+    }
+
+    const total = Math.max(0, subtotal + shipCost - discount);
+
+    // 4. إدخال الطلب
+    const { data: newOrder, error: orderErr } = await sb
+      .from("orders")
+      .insert({
+        user_id: user.id,
+        status: "pending",
+        subtotal,
+        shipping_fee: shipCost,
+        discount,
+        total,
+        coupon_code: couponCode,
+        customer_name,
+        customer_phone,
+        address_line1,
+        address_line2,
+        city,
+        notes,
+        transaction_reference_id,
+        payment_proof_path,
+      })
+      .select("id")
+      .single();
+
+    if (orderErr || !newOrder) {
+      console.error("Order Insert Error:", orderErr);
+      return { ok: false, error: orderErr?.message || "CREATE_FAILED" };
+    }
+
+    // 5. إدخال عناصر الطلب
+    const itemsToInsert = orderItemsData.map((item) => ({
+      order_id: newOrder.id,
+      product_id: item.product_id,
+      qty: item.qty,
+      price: item.price,
+    }));
+
+    await sb.from("order_items").insert(itemsToInsert);
+
+    return { ok: true, orderId: newOrder.id };
+  } catch (err: any) {
+    console.error("Server Action Exception:", err);
+    return { ok: false, error: err?.message || "SERVER_ERROR" };
+  }
 }
