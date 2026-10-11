@@ -255,7 +255,7 @@ export async function createOrder(formData: FormData) {
 
     // 11. Fire-and-forget email notification to admin
     // (does not block the response)
-    void sendOrderEmail({
+    await sendOrderEmail({
       orderId: newOrder.id,
       customerName: customer_name,
       phone: customer_phone,
