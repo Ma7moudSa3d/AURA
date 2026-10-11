@@ -306,7 +306,7 @@ export default function AdminOrderDetailPage() {
 
             <div className="flex justify-center bg-black/40 p-2 rounded border border-white/5 min-h-[200px] items-center">
               {activeProofUrl ? (
-                /* eslint-disable-next-next/no-img-element */
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={activeProofUrl}
                   alt="Payment Proof"
