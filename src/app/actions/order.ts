@@ -66,15 +66,83 @@ async function sendOrderEmail({
 }
 
 // ──────────────────────────────────────────────
+// Action: Validate Coupon Live before Checkout
+// ──────────────────────────────────────────────
+export async function validateCouponAction(code: string, subtotal: number) {
+  if (!code || !code.trim()) {
+    return { ok: false as const, error: "كود الكوبون فارغ" };
+  }
+
+  const user = await getUser();
+  if (!user) {
+    return { ok: false as const, error: "يرجى تسجيل الدخول أولاً" };
+  }
+
+  const sb = supabaseServer();
+  const cleanCode = code.trim().toUpperCase();
+
+  const { data: coupon, error } = await sb
+    .from("coupons")
+    .select("*")
+    .ilike("code", cleanCode)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (error || !coupon) {
+    return { ok: false as const, error: "كود الكوبون غير صحيح أو غير مفعّل" };
+  }
+
+  // 1. Expiration
+  if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
+    return { ok: false as const, error: "هذا الكوبون منتهي الصلاحية" };
+  }
+
+  // 2. Max Uses
+  if (coupon.max_uses && (coupon.used_count ?? 0) >= coupon.max_uses) {
+    return { ok: false as const, error: "تم استنفاد الحد الأقصى لاستخدام هذا الكوبون" };
+  }
+
+  // 3. First Order Only Check
+  if (coupon.first_order_only) {
+    const { count, error: countErr } = await sb
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+
+    if (!countErr && count && count > 0) {
+      return { ok: false as const, error: "هذا الكوبون مخصص للطلب الأول فقط" };
+    }
+  }
+
+  // Calculate discount
+  let discount = 0;
+  const numVal = Number(coupon.value ?? 0);
+  const percent = Number(coupon.discount_percent ?? (coupon.type === "percent" ? numVal : 0));
+  const amount = Number(coupon.discount_amount ?? (coupon.type === "fixed" ? numVal : 0));
+
+  if (percent > 0) {
+    discount = (subtotal * percent) / 100;
+  } else if (amount > 0) {
+    discount = amount;
+  }
+
+  return {
+    ok: true as const,
+    code: coupon.code,
+    discount: Math.round(discount * 100) / 100,
+    freeShipping: Boolean(coupon.free_shipping),
+    firstOrderOnly: Boolean(coupon.first_order_only),
+  };
+}
+
+// ──────────────────────────────────────────────
 // Main Server Action: createOrder
 // ──────────────────────────────────────────────
 export async function createOrder(formData: FormData) {
   try {
-    // 1. Auth check
     const user = await getUser();
     if (!user) return { ok: false as const, error: "AUTH_REQUIRED" };
 
-    // 2. Extract & sanitize fields
     const customer_name = (formData.get("customer_name") as string)?.trim() ?? "";
     const customer_phone = (formData.get("customer_phone") as string)?.trim() ?? "";
     const address_line1 = (formData.get("address_line1") as string)?.trim() ?? "";
@@ -88,12 +156,10 @@ export async function createOrder(formData: FormData) {
     const itemsRaw = formData.get("items") as string;
     const file = formData.get("payment_proof") as File | null;
 
-    // 3. Must have either transaction_reference_id OR proof image
     if (!transaction_reference_id && (!file || file.size === 0)) {
       return { ok: false as const, error: "PROOF_REQUIRED" };
     }
 
-    // 4. Parse cart items
     let items: { product_id: string; qty: number }[] = [];
     try {
       items = JSON.parse(itemsRaw || "[]");
@@ -106,7 +172,6 @@ export async function createOrder(formData: FormData) {
 
     const sb = supabaseServer();
 
-    // 5. Fetch product prices & titles
     const productIds = items.map((i) => i.product_id);
     const { data: products, error: prodErr } = await sb
       .from("products")
@@ -139,7 +204,6 @@ export async function createOrder(formData: FormData) {
       return { ok: false as const, error: "INVALID_PRODUCTS" };
     }
 
-    // 6. Shipping fee from settings
     const { data: settings } = await sb
       .from("settings")
       .select("shipping_fee, free_shipping_threshold")
@@ -148,36 +212,25 @@ export async function createOrder(formData: FormData) {
 
     const shippingFee = Number(settings?.shipping_fee ?? 60);
     const freeThreshold = Number(settings?.free_shipping_threshold ?? 2000);
-    const shipCost = subtotal >= freeThreshold ? 0 : shippingFee;
+    let shipCost = subtotal >= freeThreshold ? 0 : shippingFee;
 
-    // 7. Coupon check
+    // Coupon Validation
     let discount = 0;
     let couponCode: string | null = null;
 
     if (couponRaw.length > 0) {
-      const { data: couponData } = await sb
-        .from("coupons")
-        .select("code, discount_percent, discount_amount, is_active")
-        .ilike("code", couponRaw)
-        .eq("is_active", true)
-        .maybeSingle();
-
-      if (!couponData) {
-        return { ok: false as const, error: "BAD_COUPON" };
+      const couponRes = await validateCouponAction(couponRaw, subtotal);
+      if (!couponRes.ok) {
+        return { ok: false as const, error: couponRes.error };
       }
-
-      couponCode = couponData.code;
-      const percent = Number(couponData.discount_percent ?? 0);
-      const amount = Number(couponData.discount_amount ?? 0);
-
-      if (percent > 0) {
-        discount = (subtotal * percent) / 100;
-      } else if (amount > 0) {
-        discount = amount;
+      couponCode = couponRes.code;
+      discount = couponRes.discount;
+      if (couponRes.freeShipping) {
+        shipCost = 0;
       }
     }
 
-    // 8. Upload payment proof to "payment-proofs" bucket
+    // Upload payment proof
     let payment_proof_path: string | null = null;
     let payment_proof_url: string | null = null;
 
@@ -196,14 +249,12 @@ export async function createOrder(formData: FormData) {
       if (!uploadErr && uploadData) {
         payment_proof_path = uploadData.path;
         payment_proof_url = `https://qjwisnczaffrouaadqzg.supabase.co/storage/v1/object/public/payment-proofs/${fileName}`;
-      } else if (uploadErr) {
-        console.error("Storage upload error:", uploadErr);
       }
     }
 
     const total = Math.max(0, Math.round((subtotal + shipCost - discount) * 100) / 100);
 
-    // 9. Insert order
+    // Insert Order
     const { data: newOrder, error: orderErr } = await sb
       .from("orders")
       .insert({
@@ -231,13 +282,17 @@ export async function createOrder(formData: FormData) {
 
     if (orderErr || !newOrder) {
       console.error("Order insert error:", orderErr);
-      return {
-        ok: false as const,
-        error: orderErr?.message || "CREATE_FAILED",
-      };
+      return { ok: false as const, error: orderErr?.message || "CREATE_FAILED" };
     }
 
-    // 10. Insert order items
+    // Update coupon usage count
+    if (couponCode) {
+      await sb.rpc("increment_coupon_used", { coupon_code: couponCode }).catch(() => {
+        sb.from("coupons").update({ used_count: 1 }).eq("code", couponCode);
+      });
+    }
+
+    // Insert Order Items
     const itemsToInsert = orderItemsData.map((item) => ({
       order_id: newOrder.id,
       product_id: item.product_id,
@@ -249,7 +304,7 @@ export async function createOrder(formData: FormData) {
 
     await sb.from("order_items").insert(itemsToInsert);
 
-    // 11. Send email notification
+    // Send Email
     await sendOrderEmail({
       orderId: newOrder.id,
       customerName: customer_name,
