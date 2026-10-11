@@ -23,7 +23,7 @@ async function sendOrderEmail({
 }) {
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) {
-    console.error("❌ BREVO_API_KEY is missing in Vercel Environment Variables!");
+    console.error("❌ BREVO_API_KEY is missing in Vercel!");
     return;
   }
 
@@ -84,12 +84,11 @@ export async function createOrder(formData: FormData) {
     const transaction_reference_id =
       (formData.get("transaction_reference_id") as string)?.trim() || null;
 
-    // Coupon: ignore if empty / whitespace only
     const couponRaw = (formData.get("coupon") as string)?.trim() || "";
     const itemsRaw = formData.get("items") as string;
     const file = formData.get("payment_proof") as File | null;
 
-    // 3. Must have either a transaction ref OR a proof image
+    // 3. Must have either transaction_reference_id OR proof image
     if (!transaction_reference_id && (!file || file.size === 0)) {
       return { ok: false as const, error: "PROOF_REQUIRED" };
     }
@@ -107,21 +106,20 @@ export async function createOrder(formData: FormData) {
 
     const sb = supabaseServer();
 
-    // 5. Fetch product prices
+    // 5. Fetch product prices & titles
     const productIds = items.map((i) => i.product_id);
     const { data: products, error: prodErr } = await sb
       .from("products")
-      .select("id, price, discount_price, stock_qty")
+      .select("id, title_en, price, discount_price, stock_qty")
       .in("id", productIds);
 
     if (prodErr || !products || products.length === 0) {
-      console.error("Products fetch error:", prodErr);
       return { ok: false as const, error: "INVALID_PRODUCTS" };
     }
 
     const productMap = new Map(products.map((p) => [p.id, p]));
     let subtotal = 0;
-    const orderItemsData: { product_id: string; qty: number; price: number }[] = [];
+    const orderItemsData: { product_id: string; title: string; qty: number; price: number }[] = [];
 
     for (const item of items) {
       const prod = productMap.get(item.product_id);
@@ -131,6 +129,7 @@ export async function createOrder(formData: FormData) {
       subtotal += unitPrice * item.qty;
       orderItemsData.push({
         product_id: item.product_id,
+        title: prod.title_en ?? "AURA Perfume",
         qty: item.qty,
         price: unitPrice,
       });
@@ -151,7 +150,7 @@ export async function createOrder(formData: FormData) {
     const freeThreshold = Number(settings?.free_shipping_threshold ?? 2000);
     const shipCost = subtotal >= freeThreshold ? 0 : shippingFee;
 
-    // 7. Coupon check – ONLY if user typed something
+    // 7. Coupon check
     let discount = 0;
     let couponCode: string | null = null;
 
@@ -178,13 +177,12 @@ export async function createOrder(formData: FormData) {
       }
     }
 
-    // 8. Upload payment proof image (if provided)
+    // 8. Upload payment proof
     let payment_proof_path: string | null = null;
 
     if (file && file.size > 0) {
       const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
       const fileName = `proof_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-
       const buffer = Buffer.from(await file.arrayBuffer());
 
       const { data: uploadData, error: uploadErr } = await sb.storage
@@ -194,16 +192,14 @@ export async function createOrder(formData: FormData) {
           upsert: false,
         });
 
-      if (uploadErr) {
-        console.error("Proof upload error:", uploadErr);
-      } else if (uploadData) {
+      if (!uploadErr && uploadData) {
         payment_proof_path = uploadData.path;
       }
     }
 
     const total = Math.max(0, Math.round((subtotal + shipCost - discount) * 100) / 100);
 
-    // 9. Insert the order
+    // 9. Insert order
     const { data: newOrder, error: orderErr } = await sb
       .from("orders")
       .insert({
@@ -212,9 +208,11 @@ export async function createOrder(formData: FormData) {
         subtotal,
         shipping_fee: shipCost,
         discount,
+        discount_total: discount,
         total,
         coupon_code: couponCode,
         customer_name,
+        customer_email: user.email ?? "ofoftot@gmail.com",
         customer_phone,
         address_line1,
         address_line2,
@@ -240,14 +238,13 @@ export async function createOrder(formData: FormData) {
       product_id: item.product_id,
       qty: item.qty,
       price: item.price,
+      product_title_snapshot: item.title,
+      line_total: item.price * item.qty,
     }));
 
-    const { error: itemsErr } = await sb.from("order_items").insert(itemsToInsert);
-    if (itemsErr) {
-      console.error("Order items insert error:", itemsErr);
-    }
+    await sb.from("order_items").insert(itemsToInsert);
 
-    // 11. 🔥 استدعاء دالة الإيميل والانتظار لحين الإرسال!
+    // 11. Send email notification
     await sendOrderEmail({
       orderId: newOrder.id,
       customerName: customer_name,
@@ -257,7 +254,6 @@ export async function createOrder(formData: FormData) {
       city,
     });
 
-    // 12. Success
     return { ok: true as const, orderId: newOrder.id };
   } catch (err: unknown) {
     console.error("createOrder unexpected error:", err);
