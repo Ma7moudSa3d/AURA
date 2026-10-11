@@ -177,8 +177,9 @@ export async function createOrder(formData: FormData) {
       }
     }
 
-    // 8. Upload payment proof
+    // 8. Upload payment proof to "payment-proofs" bucket
     let payment_proof_path: string | null = null;
+    let payment_proof_url: string | null = null;
 
     if (file && file.size > 0) {
       const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
@@ -186,7 +187,7 @@ export async function createOrder(formData: FormData) {
       const buffer = Buffer.from(await file.arrayBuffer());
 
       const { data: uploadData, error: uploadErr } = await sb.storage
-        .from("receipts")
+        .from("payment-proofs")
         .upload(fileName, buffer, {
           contentType: file.type || "image/jpeg",
           upsert: false,
@@ -194,6 +195,9 @@ export async function createOrder(formData: FormData) {
 
       if (!uploadErr && uploadData) {
         payment_proof_path = uploadData.path;
+        payment_proof_url = `https://qjwisnczaffrouaadqzg.supabase.co/storage/v1/object/public/payment-proofs/${fileName}`;
+      } else if (uploadErr) {
+        console.error("Storage upload error:", uploadErr);
       }
     }
 
@@ -220,6 +224,7 @@ export async function createOrder(formData: FormData) {
         notes,
         transaction_reference_id,
         payment_proof_path,
+        payment_proof_url,
       })
       .select("id")
       .single();
