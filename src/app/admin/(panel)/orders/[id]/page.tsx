@@ -23,16 +23,22 @@ type OrderDetail = {
   status: string;
   customer_name: string;
   customer_email: string;
-  phone: string;
-  shipping_address: string;
-  shipping_city: string;
-  txn_ref: string | null;
+  customer_phone: string;
+  phone?: string;
+  address_line1?: string;
+  address_line2?: string;
+  shipping_address?: string;
+  city?: string;
+  shipping_city?: string;
+  transaction_reference_id?: string | null;
+  txn_ref?: string | null;
   subtotal: number;
   shipping_fee: number;
   discount_total: number;
   total: number;
   admin_note: string | null;
-  payment_proof_url: string | null;
+  payment_proof_path?: string | null;
+  payment_proof_url?: string | null;
   created_at: string;
   order_items: OrderItem[];
 };
@@ -51,6 +57,20 @@ export default function AdminOrderDetailPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showProofModal, setShowProofModal] = useState<boolean>(false);
   const [showEditProofModal, setShowEditProofModal] = useState<boolean>(false);
+
+  // Helper to build full URL from payment_proof_path if needed
+  const getFullImageUrl = (data: OrderDetail): string => {
+    if (data.payment_proof_url && data.payment_proof_url.startsWith('http')) {
+      return data.payment_proof_url;
+    }
+    if (data.payment_proof_path) {
+      if (data.payment_proof_path.startsWith('http')) {
+        return data.payment_proof_path;
+      }
+      return `https://qjwisnczaffrouaadqzg.supabase.co/storage/v1/object/public/payment-proofs/${data.payment_proof_path}`;
+    }
+    return '';
+  };
 
   useEffect(() => {
     if (!orderId) return;
@@ -79,7 +99,7 @@ export default function AdminOrderDetailPage() {
         setOrder(data);
         setStatus(data.status || 'pending');
         setAdminNote(data.admin_note || '');
-        setPaymentProofUrlInput(data.payment_proof_url || '');
+        setPaymentProofUrlInput(getFullImageUrl(data));
       }
       setLoading(false);
     }
@@ -91,6 +111,8 @@ export default function AdminOrderDetailPage() {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
+
+  const activeProofUrl = (order ? getFullImageUrl(order) : '') || paymentProofUrlInput;
 
   const handleSave = async () => {
     if (!orderId) return;
@@ -123,8 +145,7 @@ export default function AdminOrderDetailPage() {
   };
 
   const handleViewProof = () => {
-    const proofUrl = order?.payment_proof_url || paymentProofUrlInput;
-    if (proofUrl && proofUrl.trim() !== '') {
+    if (activeProofUrl && activeProofUrl.trim() !== '') {
       setShowProofModal(true);
     } else {
       setShowEditProofModal(true);
@@ -154,7 +175,10 @@ export default function AdminOrderDetailPage() {
     );
   }
 
-  const activeProofUrl = order.payment_proof_url || paymentProofUrlInput;
+  const txnRef = order.transaction_reference_id || order.txn_ref || '';
+  const phone = order.customer_phone || order.phone || '';
+  const address = order.address_line1 || order.shipping_address || '';
+  const city = order.city || order.shipping_city || '';
 
   return (
     <div className="max-w-6xl mx-auto p-4 md:p-6 text-white space-y-6">
@@ -181,17 +205,17 @@ export default function AdminOrderDetailPage() {
           <div className="space-y-1">
             <div className="font-medium">{order.customer_name || 'Customer'}</div>
             <div className="text-white/70">
-              {order.customer_email || 'No email provided'} · {order.phone || 'No phone'}
+              {order.customer_email || 'No email provided'} · {phone || 'No phone'}
             </div>
           </div>
 
           <div className="text-white/80">
-            {order.shipping_address || 'No address'}, {order.shipping_city || ''}
+            {address || 'No address'}, {city}
           </div>
 
-          {order.txn_ref && (
-            <div className="text-white/90 font-mono">
-              Txn ref: <span className="text-amber-400">{order.txn_ref}</span>
+          {txnRef && (
+            <div className="text-white/90 font-mono break-all">
+              Txn ref: <span className="text-amber-400">{txnRef}</span>
             </div>
           )}
 
