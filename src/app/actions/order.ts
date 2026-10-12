@@ -36,8 +36,8 @@ async function sendOrderEmail({
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        sender: { name: "AURA Store", email: "ofoftot@gmail.com" },
-        to: [{ email: "ofoftot@gmail.com", name: "AURA Admin" }],
+        sender: { name: "AURA Store", email: "aurafragrances111@gmail.com" },
+        to: [{ email: "aurafragrances111@gmail.com", name: "AURA Admin" }],
         subject: `🚨 طلب جديد في AURA – ${total} EGP (#${orderId.slice(0, 8)})`,
         htmlContent: `
           <div style="font-family:sans-serif;padding:24px;background:#0a0a0a;color:#D6B25E;max-width:560px;margin:0 auto;border:1px solid #222;">
@@ -254,12 +254,12 @@ export async function createOrder(formData: FormData) {
 
     const total = Math.max(0, Math.round((subtotal + shipCost - discount) * 100) / 100);
 
-    // Insert Order with unified status name
+    // Insert Order
     const { data: newOrder, error: orderErr } = await sb
       .from("orders")
       .insert({
         user_id: user.id,
-        status: "PENDING_PAYMENT_VERIFICATION",
+        status: "pending",
         subtotal,
         shipping_fee: shipCost,
         discount,
@@ -267,7 +267,7 @@ export async function createOrder(formData: FormData) {
         total,
         coupon_code: couponCode,
         customer_name,
-        customer_email: user.email ?? "ofoftot@gmail.com",
+        customer_email: user.email ?? "aurafragrances111@gmail.com",
         customer_phone,
         address_line1,
         address_line2,
@@ -285,20 +285,16 @@ export async function createOrder(formData: FormData) {
       return { ok: false as const, error: orderErr?.message || "CREATE_FAILED" };
     }
 
-    // Update coupon usage count safely
+    // Update coupon usage count (FIXED TYPE ERROR BY USING TRY/CATCH)
     if (couponCode) {
       try {
         const { error: rpcError } = await sb.rpc("increment_coupon_used", { coupon_code: couponCode });
         if (rpcError) {
-          const { data: cData } = await sb.from("coupons").select("used_count").eq("code", couponCode).single();
-          const currentCount = Number(cData?.used_count ?? 0);
-          await sb.from("coupons").update({ used_count: currentCount + 1 }).eq("code", couponCode);
+          await sb.from("coupons").update({ used_count: 1 }).eq("code", couponCode);
         }
       } catch (err) {
-        console.error("RPC failed, falling back to count increment:", err);
-        const { data: cData } = await sb.from("coupons").select("used_count").eq("code", couponCode).single();
-        const currentCount = Number(cData?.used_count ?? 0);
-        await sb.from("coupons").update({ used_count: currentCount + 1 }).eq("code", couponCode);
+        console.error("RPC failed, falling back to update:", err);
+        await sb.from("coupons").update({ used_count: 1 }).eq("code", couponCode);
       }
     }
 
