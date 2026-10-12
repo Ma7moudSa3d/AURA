@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { saveSettings } from "@/app/actions/admin";
 
 interface SettingsFormProps {
@@ -10,6 +10,17 @@ interface SettingsFormProps {
 export default function SettingsForm({ initialSettings: s }: SettingsFormProps) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Controlled State for payment checkboxes
+  const [enableCod, setEnableCod] = useState<boolean>(s?.enable_cod !== false);
+  const [enableInstapay, setEnableInstapay] = useState<boolean>(s?.enable_instapay !== false);
+  const [enableDeposit, setEnableDeposit] = useState<boolean>(s?.enable_deposit !== false);
+
+  useEffect(() => {
+    setEnableCod(s?.enable_cod !== false);
+    setEnableInstapay(s?.enable_instapay !== false);
+    setEnableDeposit(s?.enable_deposit !== false);
+  }, [s]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -43,21 +54,6 @@ export default function SettingsForm({ initialSettings: s }: SettingsFormProps) 
     </div>
   );
 
-  const toggle = (label: string, name: string, defaultChecked: boolean) => (
-    <div className="flex items-center justify-between bg-surface border border-white/10 px-4 py-3 rounded">
-      <label className="label text-xs uppercase tracking-widest text-white cursor-pointer" htmlFor={name}>
-        {label}
-      </label>
-      <input
-        type="checkbox"
-        id={name}
-        name={name}
-        defaultChecked={defaultChecked}
-        className="w-5 h-5 accent-gold cursor-pointer"
-      />
-    </div>
-  );
-
   return (
     <form onSubmit={handleSubmit} className="grid max-w-3xl gap-5 sm:grid-cols-2">
       {message && (
@@ -76,9 +72,47 @@ export default function SettingsForm({ initialSettings: s }: SettingsFormProps) 
       <div className="sm:col-span-2 mt-4">
         <h3 className="text-gold h-display text-lg mb-4 border-b border-white/10 pb-2">Payment Methods</h3>
         <div className="grid gap-4 sm:grid-cols-3">
-          {toggle("Cash on Delivery", "enable_cod", s?.enable_cod ?? true)}
-          {toggle("InstaPay (Full)", "enable_instapay", s?.enable_instapay ?? true)}
-          {toggle("25% Deposit", "enable_deposit", s?.enable_deposit ?? true)}
+          <div className="flex items-center justify-between bg-surface border border-white/10 px-4 py-3 rounded">
+            <label className="label text-xs uppercase tracking-widest text-white cursor-pointer" htmlFor="enable_cod">
+              Cash on Delivery
+            </label>
+            <input
+              type="checkbox"
+              id="enable_cod"
+              name="enable_cod"
+              checked={enableCod}
+              onChange={(e) => setEnableCod(e.target.checked)}
+              className="w-5 h-5 accent-gold cursor-pointer"
+            />
+          </div>
+
+          <div className="flex items-center justify-between bg-surface border border-white/10 px-4 py-3 rounded">
+            <label className="label text-xs uppercase tracking-widest text-white cursor-pointer" htmlFor="enable_instapay">
+              InstaPay (Full)
+            </label>
+            <input
+              type="checkbox"
+              id="enable_instapay"
+              name="enable_instapay"
+              checked={enableInstapay}
+              onChange={(e) => setEnableInstapay(e.target.checked)}
+              className="w-5 h-5 accent-gold cursor-pointer"
+            />
+          </div>
+
+          <div className="flex items-center justify-between bg-surface border border-white/10 px-4 py-3 rounded">
+            <label className="label text-xs uppercase tracking-widest text-white cursor-pointer" htmlFor="enable_deposit">
+              25% Deposit
+            </label>
+            <input
+              type="checkbox"
+              id="enable_deposit"
+              name="enable_deposit"
+              checked={enableDeposit}
+              onChange={(e) => setEnableDeposit(e.target.checked)}
+              className="w-5 h-5 accent-gold cursor-pointer"
+            />
+          </div>
         </div>
       </div>
 
