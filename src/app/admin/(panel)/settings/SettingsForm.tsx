@@ -19,9 +19,9 @@ export default function SettingsForm({ initialSettings: s }: SettingsFormProps) 
     startTransition(async () => {
       try {
         await saveSettings(formData);
-        setMessage({ type: "success", text: "تم حفظ الإعدادات بنجاح! 🎉" });
+        setMessage({ type: "success", text: "Settings saved successfully! 🎉" });
       } catch (err: any) {
-        setMessage({ type: "error", text: err.message || "حدث خطأ غير متوقع أثناء الحفظ." });
+        setMessage({ type: "error", text: err.message || "An unexpected error occurred." });
       }
     });
   }
@@ -34,7 +34,22 @@ export default function SettingsForm({ initialSettings: s }: SettingsFormProps) 
         type={type}
         defaultValue={def ?? ""}
         className="input w-full bg-surface border border-white/10 px-4 py-3 rounded text-white focus:border-gold outline-none"
-        step="0.01"
+        step={type === "number" ? "0.01" : undefined}
+      />
+    </div>
+  );
+
+  const toggle = (label: string, name: string, defaultChecked: boolean) => (
+    <div className="flex items-center justify-between bg-surface border border-white/10 px-4 py-3 rounded">
+      <label className="label text-xs uppercase tracking-widest text-white cursor-pointer" htmlFor={name}>
+        {label}
+      </label>
+      <input
+        type="checkbox"
+        id={name}
+        name={name}
+        defaultChecked={defaultChecked}
+        className="w-5 h-5 accent-gold cursor-pointer"
       />
     </div>
   );
@@ -52,6 +67,20 @@ export default function SettingsForm({ initialSettings: s }: SettingsFormProps) 
           {message.text}
         </div>
       )}
+
+      {/* Payment Methods Section */}
+      <div className="sm:col-span-2 mt-4">
+        <h3 className="text-gold h-display text-lg mb-4 border-b border-white/10 pb-2">Payment Methods</h3>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {toggle("Cash on Delivery", "enable_cod", s?.enable_cod ?? true)}
+          {toggle("InstaPay (Full)", "enable_instapay", s?.enable_instapay ?? true)}
+          {toggle("25% Deposit", "enable_deposit", s?.enable_deposit ?? true)}
+        </div>
+      </div>
+
+      <div className="sm:col-span-2 mt-4 border-b border-white/10 pb-2">
+        <h3 className="text-gold h-display text-lg">Store Info</h3>
+      </div>
 
       {f("WhatsApp number (digits, with country code)", "whatsapp_number", s?.whatsapp_number)}
       <div />
@@ -79,9 +108,9 @@ export default function SettingsForm({ initialSettings: s }: SettingsFormProps) 
       <button
         type="submit"
         disabled={isPending}
-        className="btn-gold sm:col-span-2 py-3 px-6 bg-gold text-black font-bold uppercase tracking-wider rounded hover:bg-gold/90 transition-all disabled:opacity-50 cursor-pointer"
+        className="btn-gold sm:col-span-2 mt-4 py-3 px-6 bg-gold text-black font-bold uppercase tracking-wider rounded hover:bg-gold/90 transition-all disabled:opacity-50 cursor-pointer"
       >
-        {isPending ? "جاري الحفظ..." : "SAVE SETTINGS"}
+        {isPending ? "SAVING..." : "SAVE SETTINGS"}
       </button>
     </form>
   );
