@@ -1,15 +1,12 @@
 "use server";
 import { z } from "zod";
 import { randomUUID } from "crypto";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { requireAdmin } from "@/lib/admin";
 import { supabaseServer, supabaseService } from "@/lib/supabase/server";
 import { sendEmail, lowStockHtml, OWNER } from "@/lib/email";
 import { sendAbandonedReminders } from "@/lib/abandoned";
 import { ORDER_STATUSES } from "@/lib/types";
-
-/** Every admin mutation re-verifies owner + role + email-OTP cookie + aal2, then runs under the
- *  user's session so DB-level RLS (is_admin()) is enforced a second time. */
 
 export async function updateOrderStatus(orderId: string, status: string, adminNote: string) {
   await requireAdmin();
@@ -126,9 +123,9 @@ export async function saveSettings(fd: FormData): Promise<{ ok: boolean; error?:
     await requireAdmin();
     const s = (k: string) => ((fd.get(k) as string) || null);
 
-    const enable_cod = fd.get("enable_cod") === "on";
-    const enable_instapay = fd.get("enable_instapay") === "on";
-    const enable_deposit = fd.get("enable_deposit") === "on";
+    const enable_cod = fd.get("enable_cod") !== null;
+    const enable_instapay = fd.get("enable_instapay") !== null;
+    const enable_deposit = fd.get("enable_deposit") !== null;
 
     const rawWhatsapp = String(fd.get("whatsapp_number") ?? "").replace(/\s/g, "");
     const shippingFee = num(fd.get("shipping_fee")) ?? 60;
@@ -144,7 +141,6 @@ export async function saveSettings(fd: FormData): Promise<{ ok: boolean; error?:
       free_shipping_threshold: freeThreshold,
     });
 
-    // Uses supabaseService() to bypass any RLS locks
     const sb = supabaseService();
 
     const { error } = await sb.from("settings").upsert({
