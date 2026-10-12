@@ -125,12 +125,40 @@ export async function deleteCoupon(id: string) {
 export async function saveSettings(fd: FormData) {
   await requireAdmin();
   const s = (k: string) => ((fd.get(k) as string) || null);
-  const p = z.object({ whatsapp_number: z.string().regex(/^\+?\d{8,15}$/), shipping_fee: z.number().min(0), free_shipping_threshold: z.number().min(0) })
-    .parse({ whatsapp_number: String(fd.get("whatsapp_number")).replace(/\s/g, ""), shipping_fee: num(fd.get("shipping_fee")), free_shipping_threshold: num(fd.get("free_shipping_threshold")) });
+
+  const enable_cod = fd.get("enable_cod") === "on";
+  const enable_instapay = fd.get("enable_instapay") === "on";
+  const enable_deposit = fd.get("enable_deposit") === "on";
+
+  const rawWhatsapp = String(fd.get("whatsapp_number") ?? "").replace(/\s/g, "");
+  const shippingFee = num(fd.get("shipping_fee")) ?? 60;
+  const freeThreshold = num(fd.get("free_shipping_threshold")) ?? 2000;
+
+  const p = z.object({
+    whatsapp_number: z.string().max(30).nullable(),
+    shipping_fee: z.number().min(0),
+    free_shipping_threshold: z.number().min(0),
+  }).parse({
+    whatsapp_number: rawWhatsapp || null,
+    shipping_fee: shippingFee,
+    free_shipping_threshold: freeThreshold,
+  });
+
   await supabaseServer().from("settings").update({
-    ...p, instagram: s("instagram"), facebook: s("facebook"), tiktok: s("tiktok"),
-    contact_email: s("contact_email"), contact_phone: s("contact_phone"), announcement_en: s("announcement_en"), announcement_ar: s("announcement_ar"),
+    ...p,
+    instagram: s("instagram"),
+    facebook: s("facebook"),
+    tiktok: s("tiktok"),
+    contact_email: s("contact_email") || "aurafragrances111@gmail.com",
+    contact_phone: s("contact_phone"),
+    announcement_en: s("announcement_en"),
+    announcement_ar: s("announcement_ar"),
+    enable_cod,
+    enable_instapay,
+    enable_deposit,
+    updated_at: new Date().toISOString(),
   }).eq("id", 1);
+
   revalidatePath("/", "layout");
 }
 
