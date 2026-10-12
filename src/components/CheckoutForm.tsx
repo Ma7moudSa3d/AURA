@@ -34,15 +34,22 @@ export default function CheckoutForm({
   shippingFee,
   freeThreshold,
   payNumber,
+  enableCOD = true,
+  enableInstapay = true,
+  enableDeposit = true,
 }: {
   defaults: { name: string; phone: string };
   shippingFee: number;
   freeThreshold: number;
   payNumber: string;
+  enableCOD?: boolean;
+  enableInstapay?: boolean;
+  enableDeposit?: boolean;
 }) {
   const t = useTranslations("checkout");
   const c = useTranslations("common");
   const locale = useLocale();
+  const isAr = locale === "ar";
   const router = useRouter();
   const { lines, clear } = useCart();
 
@@ -51,6 +58,11 @@ export default function CheckoutForm({
   const [file, setFile] = useState<File | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Default payment method selection
+  const [paymentMethod, setPaymentMethod] = useState<"INSTAPAY" | "DEPOSIT" | "COD">(
+    enableInstapay ? "INSTAPAY" : enableDeposit ? "DEPOSIT" : "COD"
+  );
 
   // Coupon states
   const [couponInput, setCouponInput] = useState("");
@@ -77,21 +89,28 @@ export default function CheckoutForm({
 
   const sub = cartSubtotal(lines);
 
-  // Shipping calculation (Checking Coupon Free Shipping)
+  // Shipping calculation
   let ship = sub >= freeThreshold ? 0 : shippingFee;
   if (appliedCoupon?.freeShipping) {
     ship = 0;
   }
 
-  // Discount calculation
+  // Discount and totals
   const discountAmount = appliedCoupon?.discount ?? 0;
   const finalTotal = Math.max(0, sub + ship - discountAmount);
+
+  // Deposit Breakdown (25%)
+  const depositAmount = Math.round(finalTotal * 0.25);
+  const remainingOnDelivery = finalTotal - depositAmount;
 
   // Apply Coupon Handler
   const handleApplyCoupon = async () => {
     setCouponMsg(null);
     if (!couponInput.trim()) {
-      setCouponMsg({ text: "يرجى كتابة كود الكوبون أولاً", isError: true });
+      setCouponMsg({
+        text: isAr ? "يرجى كتابة كود الكوبون أولاً" : "Please enter a coupon code first",
+        isError: true,
+      });
       return;
     }
 
@@ -105,7 +124,10 @@ export default function CheckoutForm({
         discount: res.discount,
         freeShipping: res.freeShipping,
       });
-      setCouponMsg({ text: "✨ تم تطبيق الكوبون بنجاح!", isError: false });
+      setCouponMsg({
+        text: isAr ? "✨ تم تطبيق الكوبون بنجاح!" : "✨ Coupon applied successfully!",
+        isError: false,
+      });
     } else {
       setAppliedCoupon(null);
       setCouponMsg({ text: res.error, isError: true });
@@ -114,8 +136,10 @@ export default function CheckoutForm({
 
   async function submit(v: V) {
     setErr(null);
-    if (!v.transaction_reference_id?.trim() && !file) {
-      setErr(t("proofRequired"));
+
+    // Proof validation for prepaid options
+    if (paymentMethod !== "COD" && !v.transaction_reference_id?.trim() && !file) {
+      setErr(isAr ? "إرفاق إيصال الدفع أو رقم التحويل مطلوب" : t("proofRequired"));
       return;
     }
 
@@ -123,6 +147,8 @@ export default function CheckoutForm({
     const fd = new FormData();
     Object.entries(v).forEach(([k, val]) => fd.set(k, (val as string) ?? ""));
     fd.set("items", JSON.stringify(lines.map((l) => ({ product_id: l.product_id, qty: l.qty }))));
+    fd.set("payment_method", paymentMethod);
+
     if (appliedCoupon) {
       fd.set("coupon", appliedCoupon.code);
     }
@@ -180,33 +206,96 @@ export default function CheckoutForm({
         {/* Step 2: Payment & Coupon */}
         <div className={step === 2 ? "space-y-5" : "hidden"}>
           <h2 className="h-display text-3xl">{t("payment")}</h2>
-          <div className="border border-gold2/50 bg-surface p-6 text-center shadow-glow">
-            <p className="text-sm text-cream/70">{t("payInstructions")}</p>
-            <p dir="ltr" className="h-display gold-text mt-2 text-4xl tracking-widest">
-              {payNumber}
-            </p>
+
+          {/* Payment Method Selector */}
+          <div className="space-y-3">
+            <label className="label text-gold/90 font-semibold">
+              {isAr ? "اختر طريقة الدفع" : "Select Payment Method"}
+            </label>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {enableInstapay && (
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("INSTAPAY")}
+                  className={`p-4 border text-center transition-all rounded ${
+                    paymentMethod === "INSTAPAY"
+                      ? "border-gold bg-gold/10 text-gold"
+                      : "border-white/10 text-cream/70 hover:border-white/30"
+                  }`}
+                >
+                  <p className="font-bold text-sm">{isAr ? "دفع كامل (InstaPay)" : "Full Payment (InstaPay)"}</p>
+                </button>
+              )}
+
+              {enableDeposit && (
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("DEPOSIT")}
+                  className={`p-4 border text-center transition-all rounded ${
+                    paymentMethod === "DEPOSIT"
+                      ? "border-gold bg-gold/10 text-gold"
+                      : "border-white/10 text-cream/70 hover:border-white/30"
+                  }`}
+                >
+                  <p className="font-bold text-sm">{isAr ? "دفع عربون 25%" : "25% Deposit"}</p>
+                </button>
+              )}
+
+              {enableCOD && (
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("COD")}
+                  className={`p-4 border text-center transition-all rounded ${
+                    paymentMethod === "COD"
+                      ? "border-gold bg-gold/10 text-gold"
+                      : "border-white/10 text-cream/70 hover:border-white/30"
+                  }`}
+                >
+                  <p className="font-bold text-sm">{isAr ? "دفع عند الاستلام" : "Cash on Delivery"}</p>
+                </button>
+              )}
+            </div>
           </div>
-          <p className="text-sm text-cream/60">{t("proofHelp")}</p>
 
-          {field("transaction_reference_id", t("txn"))}
+          {/* Payment Instructions if Prepaid / Deposit */}
+          {paymentMethod !== "COD" && (
+            <div className="space-y-4">
+              <div className="border border-gold2/50 bg-surface p-6 text-center shadow-glow rounded">
+                <p className="text-sm text-cream/70">
+                  {paymentMethod === "DEPOSIT"
+                    ? isAr
+                      ? `قم بتحويل مبلغ العربون 25% (${depositAmount} EGP) إلى الرقم:`
+                      : `Transfer 25% deposit (${depositAmount} EGP) to:`
+                    : t("payInstructions")}
+                </p>
+                <p dir="ltr" className="h-display gold-text mt-2 text-4xl tracking-widest">
+                  {payNumber}
+                </p>
+              </div>
 
-          <div>
-            <label className="label">{t("proof")}</label>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className="input file:me-4 file:border-0 file:bg-gold file:px-3 file:py-1 file:text-ink"
-            />
-          </div>
+              <p className="text-sm text-cream/60">{t("proofHelp")}</p>
 
-          {/* Coupon Input with APPLY button */}
-          <div>
+              {field("transaction_reference_id", t("txn"))}
+
+              <div>
+                <label className="label">{t("proof")}</label>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  className="input file:me-4 file:border-0 file:bg-gold file:px-3 file:py-1 file:text-ink"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Coupon Input */}
+          <div className="pt-2 border-t border-white/10">
             <label className="label">{t("coupon")}</label>
             <div className="flex gap-2">
               <input
                 type="text"
-                placeholder="E.g. AURAFIRST"
+                placeholder={isAr ? "مثال: AURAFIRST" : "E.g. AURAFIRST"}
                 value={couponInput}
                 onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
                 className="input uppercase flex-1"
@@ -217,7 +306,7 @@ export default function CheckoutForm({
                 disabled={applyingCoupon}
                 className="btn-gold px-5 py-2 text-xs uppercase font-bold disabled:opacity-50"
               >
-                {applyingCoupon ? "..." : "APPLY"}
+                {applyingCoupon ? "..." : isAr ? "تطبيق" : "APPLY"}
               </button>
             </div>
             {couponMsg && (
@@ -245,8 +334,10 @@ export default function CheckoutForm({
       </div>
 
       {/* Summary Sidebar */}
-      <aside className="h-fit border border-white/5 bg-surface p-6 space-y-4">
-        <h3 className="font-semibold text-lg text-amber-500 border-b border-white/10 pb-2">Order Summary</h3>
+      <aside className="h-fit border border-white/5 bg-surface p-6 space-y-4 rounded">
+        <h3 className="font-semibold text-lg text-amber-500 border-b border-white/10 pb-2">
+          {isAr ? "ملخص الطلب" : "Order Summary"}
+        </h3>
         {lines.map((l) => (
           <div key={l.product_id} className="flex justify-between py-1 text-sm">
             <span>
@@ -258,14 +349,20 @@ export default function CheckoutForm({
 
         <div className="mt-4 space-y-2 border-t border-white/10 pt-4 text-sm">
           <div className="flex justify-between text-cream/70">
-            <span>Subtotal</span>
-            <span>{money(sub, locale)} {c("currency")}</span>
+            <span>{isAr ? "المجموع الفرعي" : "Subtotal"}</span>
+            <span>
+              {money(sub, locale)} {c("currency")}
+            </span>
           </div>
 
           {discountAmount > 0 && (
             <div className="flex justify-between text-amber-400 font-medium">
-              <span>Discount ({appliedCoupon?.code})</span>
-              <span>-{money(discountAmount, locale)} {c("currency")}</span>
+              <span>
+                {isAr ? "الخصم" : "Discount"} ({appliedCoupon?.code})
+              </span>
+              <span>
+                -{money(discountAmount, locale)} {c("currency")}
+              </span>
             </div>
           )}
 
@@ -274,7 +371,11 @@ export default function CheckoutForm({
             <span>
               {ship === 0 ? (
                 <span className="text-amber-400 font-medium">
-                  {appliedCoupon?.freeShipping ? "FREE (Coupon)" : t("free")}
+                  {appliedCoupon?.freeShipping
+                    ? isAr
+                      ? "مجاني (كوبون)"
+                      : "FREE (Coupon)"
+                    : t("free")}
                 </span>
               ) : (
                 money(ship, locale)
@@ -288,6 +389,24 @@ export default function CheckoutForm({
               {money(finalTotal, locale)} {c("currency")}
             </span>
           </div>
+
+          {/* Breakdown for 25% Deposit */}
+          {paymentMethod === "DEPOSIT" && (
+            <div className="mt-4 p-3 bg-gold/10 border border-gold/30 rounded space-y-1 text-xs">
+              <div className="flex justify-between text-gold font-bold">
+                <span>{isAr ? "المطلوب تحويله الآن (25%):" : "Pay Now (25%):"}</span>
+                <span>
+                  {money(depositAmount, locale)} {c("currency")}
+                </span>
+              </div>
+              <div className="flex justify-between text-cream/70">
+                <span>{isAr ? "المتبقي عند الاستلام (75%):" : "Pay on Delivery (75%):"}</span>
+                <span>
+                  {money(remainingOnDelivery, locale)} {c("currency")}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </aside>
     </form>
