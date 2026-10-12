@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { ADMIN_COOKIE, verifyAdminCookie } from "@/lib/admin-cookie";
 
-const OWNER = "ofoftot@gmail.com";
+const OWNER = "aurafragrances111@gmail.com";
 
 export async function middleware(req: NextRequest) {
   let res = NextResponse.next({ request: req });
