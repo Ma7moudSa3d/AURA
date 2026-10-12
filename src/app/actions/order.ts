@@ -13,6 +13,7 @@ async function sendOrderEmail({
   total,
   address,
   city,
+  paymentMethod,
 }: {
   orderId: string;
   customerName: string;
@@ -20,6 +21,7 @@ async function sendOrderEmail({
   total: number;
   address: string;
   city: string;
+  paymentMethod: string;
 }) {
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) {
@@ -38,7 +40,7 @@ async function sendOrderEmail({
       body: JSON.stringify({
         sender: { name: "AURA Store", email: "aurafragrances111@gmail.com" },
         to: [{ email: "aurafragrances111@gmail.com", name: "AURA Admin" }],
-        subject: `🚨 طلب جديد في AURA – ${total} EGP (#${orderId.slice(0, 8)})`,
+        subject: `🚨 طلب جديد في AURA (${paymentMethod}) – ${total} EGP (#${orderId.slice(0, 8)})`,
         htmlContent: `
           <div style="font-family:sans-serif;padding:24px;background:#0a0a0a;color:#D6B25E;max-width:560px;margin:0 auto;border:1px solid #222;">
             <h2 style="margin:0 0 16px;font-size:22px;">✨ وصلك طلب جديد في AURA!</h2>
@@ -46,9 +48,10 @@ async function sendOrderEmail({
             <p style="color:#fff;"><strong>اسم العميل:</strong> ${customerName}</p>
             <p style="color:#fff;"><strong>الهاتف:</strong> ${phone}</p>
             <p style="color:#fff;"><strong>العنوان:</strong> ${address}, ${city}</p>
+            <p style="color:#fff;"><strong>طريقة الدفع:</strong> ${paymentMethod}</p>
             <p style="color:#fff;"><strong>الإجمالي:</strong> ${total} EGP</p>
             <hr style="border:none;border-top:1px solid #333;margin:20px 0;"/>
-            <p style="margin:0;"><a href="https://aura-perfume-weld.vercel.app/admin/orders" style="color:#D6B25E;text-decoration:none;font-weight:bold;">اضغط هنا لمعاينة الطلب والإيصال في لوحة التحكم ←</a></p>
+            <p style="margin:0;"><a href="https://aura-perfume-weld.vercel.app/admin/orders" style="color:#D6B25E;text-decoration:none;font-weight:bold;">اضغط هنا لمعاينة الطلب في لوحة التحكم ←</a></p>
           </div>
         `,
       }),
@@ -92,17 +95,14 @@ export async function validateCouponAction(code: string, subtotal: number) {
     return { ok: false as const, error: "كود الكوبون غير صحيح أو غير مفعّل" };
   }
 
-  // 1. Expiration
   if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
     return { ok: false as const, error: "هذا الكوبون منتهي الصلاحية" };
   }
 
-  // 2. Max Uses
   if (coupon.max_uses && (coupon.used_count ?? 0) >= coupon.max_uses) {
     return { ok: false as const, error: "تم استنفاد الحد الأقصى لاستخدام هذا الكوبون" };
   }
 
-  // 3. First Order Only Check
   if (coupon.first_order_only) {
     const { count, error: countErr } = await sb
       .from("orders")
@@ -114,7 +114,6 @@ export async function validateCouponAction(code: string, subtotal: number) {
     }
   }
 
-  // Calculate discount
   let discount = 0;
   const numVal = Number(coupon.value ?? 0);
   const percent = Number(coupon.discount_percent ?? (coupon.type === "percent" ? numVal : 0));
@@ -149,6 +148,7 @@ export async function createOrder(formData: FormData) {
     const address_line2 = (formData.get("address_line2") as string)?.trim() || null;
     const city = (formData.get("city") as string)?.trim() ?? "";
     const notes = (formData.get("notes") as string)?.trim() || null;
+    const payment_method = (formData.get("payment_method") as string)?.trim() || "INSTAPAY";
     const transaction_reference_id =
       (formData.get("transaction_reference_id") as string)?.trim() || null;
 
@@ -156,7 +156,8 @@ export async function createOrder(formData: FormData) {
     const itemsRaw = formData.get("items") as string;
     const file = formData.get("payment_proof") as File | null;
 
-    if (!transaction_reference_id && (!file || file.size === 0)) {
+    // FIX: Only require proof if payment method is NOT COD
+    if (payment_method !== "COD" && !transaction_reference_id && (!file || file.size === 0)) {
       return { ok: false as const, error: "PROOF_REQUIRED" };
     }
 
@@ -230,7 +231,7 @@ export async function createOrder(formData: FormData) {
       }
     }
 
-    // Upload payment proof
+    // Upload payment proof if provided
     let payment_proof_path: string | null = null;
     let payment_proof_url: string | null = null;
 
@@ -259,7 +260,8 @@ export async function createOrder(formData: FormData) {
       .from("orders")
       .insert({
         user_id: user.id,
-        status: "pending",
+        status: payment_method === "COD" ? "pending" : "pending",
+        payment_method,
         subtotal,
         shipping_fee: shipCost,
         discount,
@@ -285,7 +287,7 @@ export async function createOrder(formData: FormData) {
       return { ok: false as const, error: orderErr?.message || "CREATE_FAILED" };
     }
 
-    // Update coupon usage count (FIXED TYPE ERROR BY USING TRY/CATCH)
+    // Update coupon usage count
     if (couponCode) {
       try {
         const { error: rpcError } = await sb.rpc("increment_coupon_used", { coupon_code: couponCode });
@@ -318,6 +320,7 @@ export async function createOrder(formData: FormData) {
       total,
       address: address_line1,
       city,
+      paymentMethod: payment_method,
     });
 
     return { ok: true as const, orderId: newOrder.id };
