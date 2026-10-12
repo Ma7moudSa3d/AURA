@@ -14,7 +14,7 @@ export default function AdminOrderDetailPage() {
   const orderId = params?.id as string;
 
   const [order, setOrder] = useState<any>(null);
-  const [status, setStatus] = useState<string>('pending');
+  const [status, setStatus] = useState<string>('PENDING_PAYMENT_VERIFICATION');
   const [adminNote, setAdminNote] = useState<string>('');
   const [imageUrl, setImageUrl] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
@@ -41,7 +41,10 @@ export default function AdminOrderDetailPage() {
         console.error('Error fetching order:', error);
       } else if (data) {
         setOrder(data);
-        setStatus(data.status ? data.status.toLowerCase() : 'pending');
+        const rawStatus = (data.status || 'PENDING_PAYMENT_VERIFICATION').toUpperCase();
+        if (rawStatus === 'PENDING') setStatus('PENDING_PAYMENT_VERIFICATION');
+        else setStatus(rawStatus);
+
         setAdminNote(data.admin_note || '');
 
         const rawPath = data.payment_proof_path || '';
@@ -72,12 +75,10 @@ export default function AdminOrderDetailPage() {
     if (!orderId) return;
     setSaving(true);
 
-    const cleanStatus = status.toLowerCase().trim();
-
     const { error } = await supabase
       .from('orders')
       .update({
-        status: cleanStatus,
+        status: status,
         admin_note: adminNote,
         payment_proof_url: imageUrl || null,
       })
@@ -88,9 +89,9 @@ export default function AdminOrderDetailPage() {
     if (error) {
       alert('Error saving order: ' + error.message);
     } else {
-      alert('Order status updated to: ' + cleanStatus.toUpperCase());
+      alert('Order status updated successfully!');
       if (order) {
-        setOrder({ ...order, status: cleanStatus, admin_note: adminNote });
+        setOrder({ ...order, status: status, admin_note: adminNote });
       }
     }
   };
@@ -168,12 +169,12 @@ export default function AdminOrderDetailPage() {
               onChange={(e) => setStatus(e.target.value)}
               className="w-full bg-black/50 border border-amber-500/40 p-3 text-amber-400 font-bold uppercase tracking-wider rounded focus:outline-none focus:border-amber-500"
             >
-              <option value="pending">1. PENDING PAYMENT VERIFICATION</option>
-              <option value="paid">2. PAID</option>
-              <option value="confirmed">3. CONFIRMED</option>
-              <option value="shipped">4. SHIPPED</option>
-              <option value="delivered">5. DELIVERED</option>
-              <option value="cancelled">❌ CANCELLED</option>
+              <option value="PENDING_PAYMENT_VERIFICATION">1. PENDING PAYMENT VERIFICATION</option>
+              <option value="PAID">2. PAID</option>
+              <option value="CONFIRMED">3. CONFIRMED</option>
+              <option value="SHIPPED">4. SHIPPED</option>
+              <option value="DELIVERED">5. DELIVERED</option>
+              <option value="CANCELED">❌ CANCELED</option>
             </select>
           </div>
 
