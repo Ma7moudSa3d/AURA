@@ -285,11 +285,17 @@ export async function createOrder(formData: FormData) {
       return { ok: false as const, error: orderErr?.message || "CREATE_FAILED" };
     }
 
-    // Update coupon usage count
+    // Update coupon usage count (FIXED TYPE ERROR BY USING TRY/CATCH)
     if (couponCode) {
-      await sb.rpc("increment_coupon_used", { coupon_code: couponCode }).catch(() => {
-        sb.from("coupons").update({ used_count: 1 }).eq("code", couponCode);
-      });
+      try {
+        const { error: rpcError } = await sb.rpc("increment_coupon_used", { coupon_code: couponCode });
+        if (rpcError) {
+          await sb.from("coupons").update({ used_count: 1 }).eq("code", couponCode);
+        }
+      } catch (err) {
+        console.error("RPC failed, falling back to update:", err);
+        await sb.from("coupons").update({ used_count: 1 }).eq("code", couponCode);
+      }
     }
 
     // Insert Order Items
