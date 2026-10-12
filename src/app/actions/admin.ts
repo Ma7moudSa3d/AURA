@@ -1,7 +1,7 @@
 "use server";
 import { z } from "zod";
 import { randomUUID } from "crypto";
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin";
 import { supabaseServer, supabaseService } from "@/lib/supabase/server";
 import { sendEmail, lowStockHtml, OWNER } from "@/lib/email";
@@ -121,7 +121,10 @@ export async function deleteCoupon(id: string) {
 export async function saveSettings(fd: FormData): Promise<{ ok: boolean; error?: string }> {
   try {
     await requireAdmin();
-    const s = (k: string) => ((fd.get(k) as string) || null);
+    const s = (k: string) => {
+      const v = fd.get(k);
+      return v !== null && v !== undefined && String(v).trim() !== "" ? String(v).trim() : null;
+    };
 
     const enable_cod = fd.get("enable_cod") !== null;
     const enable_instapay = fd.get("enable_instapay") !== null;
@@ -131,24 +134,23 @@ export async function saveSettings(fd: FormData): Promise<{ ok: boolean; error?:
     const shippingFee = num(fd.get("shipping_fee")) ?? 60;
     const freeThreshold = num(fd.get("free_shipping_threshold")) ?? 2000;
 
-    const p = z.object({
-      whatsapp_number: z.string().max(30).nullable(),
-      shipping_fee: z.number().min(0),
-      free_shipping_threshold: z.number().min(0),
-    }).parse({
-      whatsapp_number: rawWhatsapp || null,
-      shipping_fee: shippingFee,
-      free_shipping_threshold: freeThreshold,
-    });
+    const instagramVal = s("instagram_url") || s("instagram");
+    const facebookVal = s("facebook_url") || s("facebook");
+    const tiktokVal = s("tiktok_url") || s("tiktok");
 
     const sb = supabaseService();
 
     const { error } = await sb.from("settings").upsert({
       id: 1,
-      ...p,
-      instagram: s("instagram"),
-      facebook: s("facebook"),
-      tiktok: s("tiktok"),
+      whatsapp_number: rawWhatsapp || null,
+      shipping_fee: shippingFee,
+      free_shipping_threshold: freeThreshold,
+      instagram: instagramVal,
+      instagram_url: instagramVal,
+      facebook: facebookVal,
+      facebook_url: facebookVal,
+      tiktok: tiktokVal,
+      tiktok_url: tiktokVal,
       contact_email: s("contact_email") || "aurafragrances111@gmail.com",
       contact_phone: s("contact_phone"),
       announcement_en: s("announcement_en"),
