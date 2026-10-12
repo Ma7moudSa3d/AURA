@@ -41,7 +41,7 @@ export default function AdminOrderDetailPage() {
         console.error('Error fetching order:', error);
       } else if (data) {
         setOrder(data);
-        setStatus(data.status || 'pending');
+        setStatus(data.status ? data.status.toLowerCase() : 'pending');
         setAdminNote(data.admin_note || '');
 
         const rawPath = data.payment_proof_path || '';
@@ -61,7 +61,6 @@ export default function AdminOrderDetailPage() {
     fetchOrder();
   }, [orderId]);
 
-  // Fallback to "receipts" bucket if image in "payment-proofs" fails
   const handleImageError = () => {
     const path = order?.payment_proof_path || '';
     if (path && imageUrl.includes('payment-proofs')) {
@@ -73,10 +72,12 @@ export default function AdminOrderDetailPage() {
     if (!orderId) return;
     setSaving(true);
 
+    const cleanStatus = status.toLowerCase().trim();
+
     const { error } = await supabase
       .from('orders')
       .update({
-        status,
+        status: cleanStatus,
         admin_note: adminNote,
         payment_proof_url: imageUrl || null,
       })
@@ -87,9 +88,9 @@ export default function AdminOrderDetailPage() {
     if (error) {
       alert('Error saving order: ' + error.message);
     } else {
-      alert('Order updated successfully!');
+      alert('Order status updated to: ' + cleanStatus.toUpperCase());
       if (order) {
-        setOrder({ ...order, status, admin_note: adminNote });
+        setOrder({ ...order, status: cleanStatus, admin_note: adminNote });
       }
     }
   };
@@ -165,13 +166,14 @@ export default function AdminOrderDetailPage() {
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="w-full bg-black/50 border border-white/20 p-3 text-white uppercase tracking-wider rounded"
+              className="w-full bg-black/50 border border-amber-500/40 p-3 text-amber-400 font-bold uppercase tracking-wider rounded focus:outline-none focus:border-amber-500"
             >
-              <option value="pending">PENDING</option>
-              <option value="processing">PROCESSING</option>
-              <option value="shipped">SHIPPED</option>
-              <option value="delivered">DELIVERED</option>
-              <option value="cancelled">CANCELLED</option>
+              <option value="pending">1. PENDING PAYMENT VERIFICATION</option>
+              <option value="paid">2. PAID</option>
+              <option value="confirmed">3. CONFIRMED</option>
+              <option value="shipped">4. SHIPPED</option>
+              <option value="delivered">5. DELIVERED</option>
+              <option value="cancelled">❌ CANCELLED</option>
             </select>
           </div>
 
@@ -189,14 +191,14 @@ export default function AdminOrderDetailPage() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-black font-semibold uppercase tracking-widest text-xs transition disabled:opacity-50"
+            className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-black font-bold uppercase tracking-widest text-xs transition disabled:opacity-50 rounded"
           >
-            {saving ? 'SAVING...' : 'SAVE'}
+            {saving ? 'SAVING...' : 'SAVE STATUS'}
           </button>
 
           <button
             onClick={() => setShowProofModal(true)}
-            className="w-full py-3 border border-amber-500/60 text-amber-400 hover:bg-amber-500/10 uppercase tracking-widest text-xs transition flex items-center justify-center gap-2"
+            className="w-full py-3 border border-amber-500/60 text-amber-400 hover:bg-amber-500/10 uppercase tracking-widest text-xs transition flex items-center justify-center gap-2 rounded"
           >
             📷 VIEW PAYMENT PROOF
             {imageUrl && <span className="w-2 h-2 rounded-full bg-green-500 inline-block"></span>}
