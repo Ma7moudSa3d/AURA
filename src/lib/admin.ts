@@ -1,27 +1,30 @@
-import { cookies } from "next/headers";
 import { supabaseServer } from "@/lib/supabase/server";
-import { ADMIN_COOKIE, verifyAdminCookie } from "@/lib/admin-cookie";
+import { cookies } from "next/headers";
+import { ADMIN_COOKIE, verifyAdminCookie } from "./admin-cookie";
 
-export const OWNER_EMAIL = "ofoftot@gmail.com";
+export const OWNER_EMAIL = "aurafragrances111@gmail.com";
 
-export type AdminCheck = { ok: true; userId: string } | { ok: false; reason: "anon" | "not_owner" | "no_otp" | "no_mfa" };
-
-/** Full server-side admin gate: owner email + DB role + email-OTP cookie + TOTP (aal2). */
-export async function checkAdmin(): Promise<AdminCheck> {
+export async function checkAdmin() {
   const sb = supabaseServer();
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return { ok: false, reason: "anon" };
-  if (user.email !== OWNER_EMAIL) return { ok: false, reason: "not_owner" };
-  const { data: profile } = await sb.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") return { ok: false, reason: "not_owner" };
-  if (!(await verifyAdminCookie(cookies().get(ADMIN_COOKIE)?.value, user.id))) return { ok: false, reason: "no_otp" };
-  const { data: aal } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
-  if (aal?.currentLevel !== "aal2") return { ok: false, reason: "no_mfa" };
-  return { ok: true, userId: user.id };
-}
+  const {
+    data: { user },
+  } = await sb.auth.getUser();
 
-export async function requireAdmin() {
-  const r = await checkAdmin();
-  if (!r.ok) throw new Error("Forbidden");
-  return r.userId;
+  if (!user) return { ok: false, reason: "not_logged_in" as const };
+
+  const ownerEmail = process.env.OWNER_EMAIL || OWNER_EMAIL;
+  if (user.email !== ownerEmail && user.email !== "aurafragrances111@gmail.com") {
+    return { ok: false, reason: "not_owner" as const };
+  }
+
+  const cookieStore = cookies();
+  const adminCookie = cookieStore.get(ADMIN_COOKIE)?.value;
+  const otpOk = await verifyAdminCookie(adminCookie, user.id);
+
+  const { data: aal } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+
+  if (!otpOk) return { ok: false, reason: "no_otp" as const };
+  if (aal?.currentLevel !== "aal2") return { ok: false, reason: "no_mfa" as const };
+
+  return { ok: true as const, user };
 }
