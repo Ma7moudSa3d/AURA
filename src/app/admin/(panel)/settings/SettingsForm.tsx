@@ -18,14 +18,10 @@ export default function SettingsForm({ initialSettings: s }: SettingsFormProps) 
 
     startTransition(async () => {
       try {
-        const res = await saveSettings(formData);
-        if (res && res.ok === false) {
-          setMessage({ type: "error", text: res.error || "فشل حفظ الإعدادات." });
-        } else {
-          setMessage({ type: "success", text: "تم حفظ الإعدادات بنجاح! 🎉" });
-        }
+        await saveSettings(formData);
+        setMessage({ type: "success", text: "تم حفظ الإعدادات بنجاح! 🎉" });
       } catch (err: any) {
-        setMessage({ type: "error", text: err.message || "حدث خطأ غير متوقع." });
+        setMessage({ type: "error", text: err.message || "حدث خطأ غير متوقع أثناء الحفظ." });
       }
     });
   }
