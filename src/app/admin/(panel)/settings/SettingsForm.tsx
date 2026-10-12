@@ -18,8 +18,12 @@ export default function SettingsForm({ initialSettings: s }: SettingsFormProps) 
 
     startTransition(async () => {
       try {
-        await saveSettings(formData);
-        setMessage({ type: "success", text: "Settings saved successfully! 🎉" });
+        const res = await saveSettings(formData);
+        if (res && res.ok === false) {
+          setMessage({ type: "error", text: res.error || "Failed to save settings." });
+        } else {
+          setMessage({ type: "success", text: "Settings saved successfully! 🎉" });
+        }
       } catch (err: any) {
         setMessage({ type: "error", text: err.message || "An unexpected error occurred." });
       }
