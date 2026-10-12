@@ -5,6 +5,8 @@ import { getSettings, getUser } from "@/lib/data";
 import CheckoutForm from "@/components/CheckoutForm";
 
 export const metadata = { title: "Checkout" };
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function Checkout() {
   const user = await getUser();
@@ -26,9 +28,9 @@ export default async function Checkout() {
         shippingFee={Number(s?.shipping_fee ?? 60)}
         freeThreshold={Number(s?.free_shipping_threshold ?? 2000)}
         payNumber={process.env.NEXT_PUBLIC_PAYMENT_NUMBER ?? s?.contact_phone ?? "01016267377"}
-        enableCOD={Boolean(s?.enable_cod ?? true)}
-        enableInstapay={Boolean(s?.enable_instapay ?? true)}
-        enableDeposit={Boolean(s?.enable_deposit ?? true)}
+        enableCOD={s?.enable_cod !== false}
+        enableInstapay={s?.enable_instapay !== false}
+        enableDeposit={s?.enable_deposit !== false}
       />
     </div>
   );
