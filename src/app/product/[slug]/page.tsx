@@ -20,13 +20,36 @@ export default async function ProductPage({ params }: { params: { slug: string }
   const n = await getTranslations("nav");
   const c = await getTranslations("common");
   const sb = supabaseServer();
-  const { data } = await sb.from("products").select("*, product_images(id, path, sort_order), product_notes(*)").eq("slug", params.slug).eq("is_active", true).single();
+  
+  const { data } = await sb
+    .from("products")
+    .select("*, product_images(id, path, sort_order), product_notes(*)")
+    .eq("slug", params.slug)
+    .eq("is_active", true)
+    .single();
+
   if (!data) notFound();
   const p = data as Product;
+
   const [settings, user, { data: reviews }] = await Promise.all([
-    getSettings(), getUser(),
+    getSettings(),
+    getUser(),
     sb.from("reviews").select("id, rating, body, created_at").eq("product_id", p.id).eq("is_approved", true).order("created_at", { ascending: false }),
   ]);
+
+  // التحقق من شراء واستلام العميل للمنتج
+  let canReview = false;
+  if (user) {
+    const { data: userOrders } = await sb
+      .from("orders")
+      .select("id, status, order_items!inner(product_id)")
+      .eq("user_id", user.id)
+      .ilike("status", "%delivered%")
+      .eq("order_items.product_id", p.id);
+
+    canReview = Boolean(userOrders && userOrders.length > 0);
+  }
+
   const price = effectivePrice(p);
   const sale = price < Number(p.price);
   const imgs = [...(p.product_images ?? [])].sort((a, b) => a.sort_order - b.sort_order).map((i) => imageUrl(i.path));
@@ -68,9 +91,14 @@ export default async function ProductPage({ params }: { params: { slug: string }
           <h2 className="h-display mb-4 text-2xl">{t("reviews")}</h2>
           {(reviews ?? []).length === 0 && <p className="text-sm text-cream/50">{t("noReviews")}</p>}
           {(reviews ?? []).map((r) => (
-            <div key={r.id} className="border-b border-white/5 py-3"><p className="text-gold">{"★".repeat(r.rating)}</p><p className="text-sm text-cream/75">{r.body}</p></div>
+            <div key={r.id} className="border-b border-white/5 py-3">
+              <p className="text-gold">{"★".repeat(r.rating)}</p>
+              <p className="text-sm text-cream/75">{r.body}</p>
+            </div>
           ))}
-          <ReviewForm productId={p.id} loggedIn={!!user} />
+
+          {/* استدعاء نموذج التقييم مع شروط الحساب والشراء */}
+          <ReviewForm productId={p.id} loggedIn={!!user} canReview={canReview} />
         </div>
       </div>
     </div>
