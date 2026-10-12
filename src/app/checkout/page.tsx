@@ -16,17 +16,19 @@ export default async function Checkout() {
     supabaseServer().from("profiles").select("full_name, phone").eq("id", user.id).single(),
   ]);
 
+  const s = settings as any;
+
   return (
     <div className="container-x py-12">
       <h1 className="h-display mb-10 text-5xl">{t("title")}</h1>
       <CheckoutForm
         defaults={{ name: profile?.full_name ?? "", phone: profile?.phone ?? "" }}
-        shippingFee={Number(settings?.shipping_fee ?? 60)}
-        freeThreshold={Number(settings?.free_shipping_threshold ?? 2000)}
-        payNumber={process.env.NEXT_PUBLIC_PAYMENT_NUMBER ?? settings?.contact_phone ?? "01016267377"}
-        enableCOD={Boolean(settings?.enable_cod ?? true)}
-        enableInstapay={Boolean(settings?.enable_instapay ?? true)}
-        enableDeposit={Boolean(settings?.enable_deposit ?? true)}
+        shippingFee={Number(s?.shipping_fee ?? 60)}
+        freeThreshold={Number(s?.free_shipping_threshold ?? 2000)}
+        payNumber={process.env.NEXT_PUBLIC_PAYMENT_NUMBER ?? s?.contact_phone ?? "01016267377"}
+        enableCOD={Boolean(s?.enable_cod ?? true)}
+        enableInstapay={Boolean(s?.enable_instapay ?? true)}
+        enableDeposit={Boolean(s?.enable_deposit ?? true)}
       />
     </div>
   );
