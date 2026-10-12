@@ -144,7 +144,10 @@ export async function saveSettings(fd: FormData): Promise<{ ok: boolean; error?:
       free_shipping_threshold: freeThreshold,
     });
 
-    const { error } = await supabaseServer().from("settings").upsert({
+    // Uses supabaseService() to bypass any RLS locks
+    const sb = supabaseService();
+
+    const { error } = await sb.from("settings").upsert({
       id: 1,
       ...p,
       instagram: s("instagram"),
@@ -158,7 +161,7 @@ export async function saveSettings(fd: FormData): Promise<{ ok: boolean; error?:
       enable_instapay,
       enable_deposit,
       updated_at: new Date().toISOString(),
-    });
+    }, { onConflict: "id" });
 
     if (error) {
       console.error("Save settings DB error:", error);
@@ -172,7 +175,7 @@ export async function saveSettings(fd: FormData): Promise<{ ok: boolean; error?:
     return { ok: true };
   } catch (err: any) {
     console.error("saveSettings exception:", err);
-    return { ok: false, error: err?.message || "فشل حفظ الإعدادات" };
+    return { ok: false, error: err?.message || "Failed to save settings" };
   }
 }
 
