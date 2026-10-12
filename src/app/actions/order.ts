@@ -254,12 +254,12 @@ export async function createOrder(formData: FormData) {
 
     const total = Math.max(0, Math.round((subtotal + shipCost - discount) * 100) / 100);
 
-    // Insert Order
+    // Insert Order with unified status name
     const { data: newOrder, error: orderErr } = await sb
       .from("orders")
       .insert({
         user_id: user.id,
-        status: "pending",
+        status: "PENDING_PAYMENT_VERIFICATION",
         subtotal,
         shipping_fee: shipCost,
         discount,
@@ -285,16 +285,20 @@ export async function createOrder(formData: FormData) {
       return { ok: false as const, error: orderErr?.message || "CREATE_FAILED" };
     }
 
-    // Update coupon usage count (FIXED TYPE ERROR BY USING TRY/CATCH)
+    // Update coupon usage count safely
     if (couponCode) {
       try {
         const { error: rpcError } = await sb.rpc("increment_coupon_used", { coupon_code: couponCode });
         if (rpcError) {
-          await sb.from("coupons").update({ used_count: 1 }).eq("code", couponCode);
+          const { data: cData } = await sb.from("coupons").select("used_count").eq("code", couponCode).single();
+          const currentCount = Number(cData?.used_count ?? 0);
+          await sb.from("coupons").update({ used_count: currentCount + 1 }).eq("code", couponCode);
         }
       } catch (err) {
-        console.error("RPC failed, falling back to update:", err);
-        await sb.from("coupons").update({ used_count: 1 }).eq("code", couponCode);
+        console.error("RPC failed, falling back to count increment:", err);
+        const { data: cData } = await sb.from("coupons").select("used_count").eq("code", couponCode).single();
+        const currentCount = Number(cData?.used_count ?? 0);
+        await sb.from("coupons").update({ used_count: currentCount + 1 }).eq("code", couponCode);
       }
     }
 
