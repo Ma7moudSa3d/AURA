@@ -60,15 +60,15 @@ export default async function Track({ searchParams }: { searchParams: { id?: str
 
           {currentStatus === "CANCELED" ? (
             <p className="mt-4 text-lg text-red-300">
-              {s ? s("CANCELED") : "Canceled"}
+              {s ? s("CANCELED" as any) : "Canceled"}
             </p>
           ) : (
             <ol className="mt-6 space-y-4">
               {FLOW.map((st, i) => {
                 const isCompleted = i <= idx;
-                let label = st;
+                let label = st.replace(/_/g, " ");
                 try {
-                  label = s(st);
+                  label = s(st as any);
                 } catch {
                   label = st.replace(/_/g, " ");
                 }
