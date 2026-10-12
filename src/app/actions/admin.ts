@@ -101,7 +101,6 @@ export async function deleteProduct(id: string) {
   await requireAdmin();
   const sb = supabaseServer();
   const { error } = await sb.from("products").delete().eq("id", z.string().uuid().parse(id));
-  // products referenced by past orders cannot be deleted: deactivate instead
   if (error) await sb.from("products").update({ is_active: false }).eq("id", id);
   revalidatePath("/", "layout");
 }
@@ -144,7 +143,8 @@ export async function saveSettings(fd: FormData) {
     free_shipping_threshold: freeThreshold,
   });
 
-  await supabaseServer().from("settings").update({
+  const { error } = await supabaseServer().from("settings").upsert({
+    id: 1,
     ...p,
     instagram: s("instagram"),
     facebook: s("facebook"),
@@ -157,9 +157,16 @@ export async function saveSettings(fd: FormData) {
     enable_instapay,
     enable_deposit,
     updated_at: new Date().toISOString(),
-  }).eq("id", 1);
+  });
+
+  if (error) {
+    console.error("Save settings DB error:", error);
+    throw new Error(error.message);
+  }
 
   revalidatePath("/", "layout");
+  revalidatePath("/admin/settings");
+  revalidatePath("/checkout");
 }
 
 export async function sendRemindersNow() {
