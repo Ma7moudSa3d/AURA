@@ -38,21 +38,41 @@ export async function getProofUrl(path: string): Promise<string | null> {
 
 const num = (v: FormDataEntryValue | null) => (v === null || v === "" ? null : Number(v));
 const list = (v: FormDataEntryValue | null) => String(v ?? "").split(/[,،\n]/).map((s) => s.trim()).filter(Boolean);
+
 const productSchema = z.object({
-  title_en: z.string().trim().min(1).max(120), title_ar: z.string().trim().min(1).max(120),
+  title_en: z.string().trim().min(1).max(120),
+  title_ar: z.string().trim().min(1).max(120),
   slug: z.string().trim().regex(/^[a-z0-9-]+$/).max(100),
-  description_en: z.string().max(4000), description_ar: z.string().max(4000),
-  price: z.number().min(0), discount_price: z.number().min(0).nullable(), discount_percent: z.number().min(0).max(100).nullable(),
-  discount_start: z.string().nullable(), discount_end: z.string().nullable(),
-  stock_qty: z.number().int().min(0), low_stock_threshold: z.number().int().min(0),
-  is_active: z.boolean(), is_featured: z.boolean(),
-  gender: z.enum(["unisex", "men", "women"]), collection: z.string().max(80).nullable(),
-  tags: z.array(z.string()), volume: z.string().max(20), concentration: z.string().max(20),
+  description_en: z.string().max(4000),
+  description_ar: z.string().max(4000),
+  price: z.number().min(0),
+  discount_price: z.number().min(0).nullable(),
+  discount_percent: z.number().min(0).max(100).nullable(),
+  discount_start: z.string().nullable(),
+  discount_end: z.string().nullable(),
+  stock_qty: z.number().int().min(0),
+  low_stock_threshold: z.number().int().min(0),
+  is_active: z.boolean(),
+  is_featured: z.boolean(),
+  gender: z.enum(["unisex", "men", "women"]),
+  collection: z.string().max(80).nullable(),
+  tags: z.array(z.string()),
+  volume: z.string().max(20),
+  concentration: z.string().max(20),
 });
 
 export async function saveProduct(fd: FormData): Promise<{ ok: boolean; error?: string }> {
   await requireAdmin();
   const id = (fd.get("id") as string) || null;
+
+  let variants = [];
+  try {
+    const rawVariants = fd.get("variants") as string;
+    if (rawVariants) variants = JSON.parse(rawVariants);
+  } catch (e) {
+    console.error("Variants parse error:", e);
+  }
+
   const parsed = productSchema.safeParse({
     title_en: fd.get("title_en"), title_ar: fd.get("title_ar"), slug: fd.get("slug"),
     description_en: fd.get("description_en") ?? "", description_ar: fd.get("description_ar") ?? "",
@@ -63,10 +83,18 @@ export async function saveProduct(fd: FormData): Promise<{ ok: boolean; error?: 
     gender: fd.get("gender"), collection: (fd.get("collection") as string) || null, tags: list(fd.get("tags")),
     volume: fd.get("volume") ?? "50ml", concentration: fd.get("concentration") ?? "EDP",
   });
+
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.path.join(".") + ": " + parsed.error.issues[0]?.message };
+
+  const payload = {
+    ...parsed.data,
+    variants,
+  };
+
   const sb = supabaseServer();
-  const res = id ? await sb.from("products").update(parsed.data).eq("id", id).select("id").single()
-                 : await sb.from("products").insert(parsed.data).select("id").single();
+  const res = id ? await sb.from("products").update(payload).eq("id", id).select("id").single()
+                 : await sb.from("products").insert(payload).select("id").single();
+
   if (res.error || !res.data) return { ok: false, error: res.error?.message };
   const pid = res.data.id;
 
@@ -81,6 +109,7 @@ export async function saveProduct(fd: FormData): Promise<{ ok: boolean; error?: 
     const up = await sb.storage.from("product-images").upload(path, f, { contentType: f.type });
     if (!up.error) await sb.from("product_images").insert({ product_id: pid, path, sort_order: order++ });
   }
+
   revalidatePath("/", "layout");
   return { ok: true };
 }
