@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { saveProduct, deleteProductImage } from "@/app/actions/admin"
 import { ProductVariant } from "@/lib/types"
@@ -55,7 +55,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
 
     if (variants.length > 0) {
       formData.set("price", String(variants[0].price))
-      if (variants[0].discount_price) {
+      if (variants[0].discount_price !== undefined && variants[0].discount_price !== null) {
         formData.set("discount_price", String(variants[0].discount_price))
       }
       formData.set("volume", variants[0].volume)
