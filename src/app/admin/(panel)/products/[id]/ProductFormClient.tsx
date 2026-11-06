@@ -1,7 +1,6 @@
-// src/app/admin/(panel)/products/[id]/ProductFormClient.tsx
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import { useRouter } from "next/navigation"
 import { saveProduct, deleteProductImage } from "@/app/actions/admin"
 import { ProductVariant } from "@/lib/types"
@@ -15,7 +14,6 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // تهيئة السعات والأسعار المتعددة (إذا كان المنتج قديم يأخذ السعة والسعر الحالية كـ Variant أول)
   const [variants, setVariants] = useState<ProductVariant[]>(() => {
     if (product?.variants && Array.isArray(product.variants) && product.variants.length > 0) {
       return product.variants
@@ -53,10 +51,8 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
     setError(null)
 
     const formData = new FormData(e.currentTarget)
-    // إرسال مصفوفة السعات كـ JSON إلى السيرفر
     formData.set("variants", JSON.stringify(variants))
 
-    // جعل السعر والمخزون الأساسي يساوي السعة الأولى كـ Fallback
     if (variants.length > 0) {
       formData.set("price", String(variants[0].price))
       if (variants[0].discount_price) {
@@ -93,7 +89,6 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
 
       {product?.id && <input type="hidden" name="id" value={product.id} />}
 
-      {/* Basic Titles */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-xs uppercase tracking-wider text-gold mb-1">Title (EN)</label>
@@ -117,7 +112,6 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
         </div>
       </div>
 
-      {/* Slug, Gender & Collection */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="block text-xs uppercase tracking-wider text-gold mb-1">Slug</label>
@@ -152,7 +146,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
         </div>
       </div>
 
-      {/* 🌟 قسم السعات والأسعار المتعددة (VARIANTS SECTION) */}
+      {/* 🌟 VARIANTS SECTION */}
       <div className="border border-gold/40 p-5 bg-gold/5 rounded-lg space-y-4">
         <div className="flex justify-between items-center border-b border-gold/20 pb-3">
           <div>
@@ -195,7 +189,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
                 />
               </div>
               <div className="w-1/2 md:w-1/4">
-                <label className="block text-[10px] text-gold uppercase mb-1">Discount Price (سعر الخصم)</label>
+                <label className="block text-[10px] text-gold uppercase mb-1">Discount Price (خصم)</label>
                 <input
                   type="number"
                   value={v.discount_price ?? ""}
@@ -227,7 +221,6 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
         </div>
       </div>
 
-      {/* Main Stock & Low Stock Alert */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-xs uppercase tracking-wider text-gold mb-1">Total Stock Quantity</label>
@@ -251,7 +244,6 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
         </div>
       </div>
 
-      {/* Descriptions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-xs uppercase tracking-wider text-gold mb-1">Description (EN)</label>
@@ -273,10 +265,9 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
         </div>
       </div>
 
-      {/* Fragrance Notes */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label className="block text-xs uppercase tracking-wider text-gold mb-1">Top Notes (قمة العطر)</label>
+          <label className="block text-xs uppercase tracking-wider text-gold mb-1">Top Notes</label>
           <input
             type="text"
             name="top_notes"
@@ -286,7 +277,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
           />
         </div>
         <div>
-          <label className="block text-xs uppercase tracking-wider text-gold mb-1">Heart Notes (قلب العطر)</label>
+          <label className="block text-xs uppercase tracking-wider text-gold mb-1">Heart Notes</label>
           <input
             type="text"
             name="heart_notes"
@@ -296,7 +287,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
           />
         </div>
         <div>
-          <label className="block text-xs uppercase tracking-wider text-gold mb-1">Base Notes (قاعدة العطر)</label>
+          <label className="block text-xs uppercase tracking-wider text-gold mb-1">Base Notes</label>
           <input
             type="text"
             name="base_notes"
@@ -307,7 +298,6 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
         </div>
       </div>
 
-      {/* Tags & Concentration */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="block text-xs uppercase tracking-wider text-gold mb-1">Default Volume Label</label>
@@ -328,7 +318,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
           />
         </div>
         <div>
-          <label className="block text-xs uppercase tracking-wider text-gold mb-1">Tags (Comma Separated)</label>
+          <label className="block text-xs uppercase tracking-wider text-gold mb-1">Tags</label>
           <input
             type="text"
             name="tags"
@@ -339,7 +329,6 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
         </div>
       </div>
 
-      {/* Checkboxes */}
       <div className="flex gap-6 py-2">
         <label className="flex items-center gap-2 cursor-pointer text-sm text-cream">
           <input
@@ -348,7 +337,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
             defaultChecked={product?.is_active ?? true}
             className="accent-gold"
           />
-          Active (ظاهر للمشترين)
+          Active
         </label>
         <label className="flex items-center gap-2 cursor-pointer text-sm text-cream">
           <input
@@ -357,11 +346,10 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
             defaultChecked={product?.is_featured ?? false}
             className="accent-gold"
           />
-          Featured (عطر مميز)
+          Featured
         </label>
       </div>
 
-      {/* Existing Images */}
       {product?.images && product.images.length > 0 && (
         <div>
           <label className="block text-xs uppercase tracking-wider text-gold mb-2">Existing Images</label>
@@ -386,7 +374,6 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
         </div>
       )}
 
-      {/* Upload New Images */}
       <div>
         <label className="block text-xs uppercase tracking-wider text-gold mb-1">Upload Product Images</label>
         <input
@@ -398,7 +385,6 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
         />
       </div>
 
-      {/* Submit Button */}
       <button
         type="submit"
         disabled={loading}
