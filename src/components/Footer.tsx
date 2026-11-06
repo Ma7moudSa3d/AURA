@@ -1,14 +1,16 @@
 // src/components/Footer.tsx
 import Link from "next/link"
 import { getLocale, getTranslations } from "next-intl/server"
-import { getSettings } from "@/lib/data"
 import WhatsAppButton from "@/components/WhatsAppButton"
 
-export default async function Footer() {
+interface FooterProps {
+  settings?: any
+}
+
+export default async function Footer({ settings }: FooterProps = {}) {
   const locale = await getLocale()
   const t = await getTranslations("footer")
   const n = await getTranslations("nav")
-  const settings = await getSettings()
 
   return (
     <footer className="mt-24 border-t border-white/5 bg-surface py-16 text-cream/80">
