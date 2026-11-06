@@ -1,8 +1,35 @@
+// src/lib/types.ts
+
+export const ORDER_STATUSES = [
+  "PENDING",
+  "CONFIRMED",
+  "PAID",
+  "PROCESSING",
+  "SHIPPED",
+  "DELIVERED",
+  "CANCELED",
+  "REFUNDED",
+] as const;
+
+export type OrderStatus = (typeof ORDER_STATUSES)[number];
+
 export interface ProductVariant {
   volume: string;
   price: number;
   discount_price?: number | null;
   stock_qty?: number;
+}
+
+export interface ProductImage {
+  id: string;
+  path: string;
+  sort_order: number;
+}
+
+export interface ProductNotes {
+  top_notes: string[];
+  heart_notes: string[];
+  base_notes: string[];
 }
 
 export interface Product {
@@ -21,7 +48,7 @@ export interface Product {
   low_stock_threshold: number;
   is_active: boolean;
   is_featured: boolean;
-  gender: 'unisex' | 'men' | 'women';
+  gender: "unisex" | "men" | "women";
   collection?: string | null;
   tags: string[];
   volume: string;
@@ -29,6 +56,94 @@ export interface Product {
   variants?: ProductVariant[];
   created_at?: string;
   updated_at?: string;
-  images?: { id: string; path: string; sort_order: number }[];
-  notes?: { top_notes: string[]; heart_notes: string[]; base_notes: string[] };
+  images?: ProductImage[];
+  notes?: ProductNotes;
+}
+
+export interface CartItem {
+  id: string;
+  product_id: string;
+  title_en: string;
+  title_ar: string;
+  volume: string;
+  price: number;
+  discount_price?: number | null;
+  qty: number;
+  image?: string;
+}
+
+export interface Coupon {
+  id: string;
+  code: string;
+  type: "percent" | "fixed";
+  value: number;
+  expires_at?: string | null;
+  max_uses?: number | null;
+  used_count?: number;
+}
+
+export interface OrderItem {
+  id: string;
+  order_id: string;
+  product_id: string;
+  quantity: number;
+  unit_price: number;
+  volume?: string;
+  products?: Partial<Product>;
+}
+
+export interface Order {
+  id: string;
+  user_id?: string | null;
+  status: OrderStatus;
+  payment_method: string;
+  deposit_amount: number;
+  remaining_balance: number;
+  subtotal: number;
+  shipping_fee: number;
+  discount_amount: number;
+  total_amount: number;
+  coupon_code?: string | null;
+  proof_path?: string | null;
+  transaction_reference_id?: string | null;
+  governorate?: string | null;
+  city?: string | null;
+  address_details?: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
+  customer_name?: string | null;
+  admin_note?: string | null;
+  created_at: string;
+  order_items?: OrderItem[];
+}
+
+export interface Settings {
+  id: number;
+  whatsapp_number?: string | null;
+  shipping_fee: number;
+  free_shipping_threshold: number;
+  instagram?: string | null;
+  instagram_url?: string | null;
+  facebook?: string | null;
+  facebook_url?: string | null;
+  tiktok?: string | null;
+  tiktok_url?: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
+  announcement_en?: string | null;
+  announcement_ar?: string | null;
+  enable_cod: boolean;
+  enable_instapay: boolean;
+  enable_deposit: boolean;
+  updated_at?: string;
+}
+
+export interface Review {
+  id: string;
+  product_id: string;
+  user_name: string;
+  rating: number;
+  comment: string;
+  is_approved: boolean;
+  created_at: string;
 }
