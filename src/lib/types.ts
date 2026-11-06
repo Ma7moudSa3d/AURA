@@ -58,6 +58,8 @@ export interface Product {
   updated_at?: string;
   images?: ProductImage[];
   notes?: ProductNotes;
+  product_images?: ProductImage[];
+  product_notes?: ProductNotes | ProductNotes[];
 }
 
 export interface CartItem {
