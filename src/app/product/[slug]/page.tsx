@@ -29,7 +29,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
     .single();
 
   if (!data) notFound();
-  const p = data as Product;
+  const p = data as any;
 
   const [settings, user, { data: reviews }] = await Promise.all([
     getSettings(),
@@ -52,7 +52,8 @@ export default async function ProductPage({ params }: { params: { slug: string }
 
   const price = effectivePrice(p);
   const sale = price < Number(p.price);
-  const imgs = [...(p.product_images ?? [])].sort((a, b) => a.sort_order - b.sort_order).map((i) => imageUrl(i.path));
+  const rawImages = p.product_images ?? p.images ?? [];
+  const imgs = [...rawImages].sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((i: any) => imageUrl(i.path));
   const notes = Array.isArray(p.product_notes) ? p.product_notes[0] : p.product_notes;
   const pyramid: [string, string[] | undefined][] = [[t("top"), notes?.top_notes], [t("heart"), notes?.heart_notes], [t("base"), notes?.base_notes]];
 
