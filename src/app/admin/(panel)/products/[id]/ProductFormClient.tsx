@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import { useRouter } from "next/navigation"
 import { saveProduct, deleteProductImage } from "@/app/actions/admin"
 import { ProductVariant } from "@/lib/types"
@@ -146,7 +146,6 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
         </div>
       </div>
 
-      {/* 🌟 VARIANTS SECTION */}
       <div className="border border-gold/40 p-5 bg-gold/5 rounded-lg space-y-4">
         <div className="flex justify-between items-center border-b border-gold/20 pb-3">
           <div>
