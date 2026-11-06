@@ -1,14 +1,39 @@
-import { notFound } from "next/navigation";
-import { supabaseServer } from "@/lib/supabase/server";
-import AdminProductForm from "@/components/AdminProductForm";
-import type { Product } from "@/lib/types";
+import { supabaseServer } from "@/lib/supabase/server"
+import { notFound } from "next/navigation"
+import ProductFormClient from "./ProductFormClient"
 
-export default async function EditProduct({ params }: { params: { id: string } }) {
-  let p: Product | null = null;
-  if (params.id !== "new") {
-    const { data } = await supabaseServer().from("products").select("*, product_images(id,path,sort_order), product_notes(*)").eq("id", params.id).single();
-    if (!data) notFound();
-    p = data as Product;
+export const dynamic = "force-dynamic"
+
+export default async function ProductPage({ params }: { params: { id: string } }) {
+  const isNew = params.id === "new"
+  let product: any = null
+
+  if (!isNew) {
+    const sb = supabaseServer()
+    const { data: p } = await sb
+      .from("products")
+      .select("*, product_images(*), product_notes(*)")
+      .eq("id", params.id)
+      .single()
+
+    if (!p) return notFound()
+
+    product = {
+      ...p,
+      images: p.product_images ?? [],
+      notes: Array.isArray(p.product_notes) ? p.product_notes[0] : p.product_notes,
+    }
   }
-  return <div><h1 className="h-display mb-6 text-4xl">{p ? p.title_en : "New product"}</h1><AdminProductForm p={p} /></div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center border-b border-white/10 pb-4">
+        <h1 className="text-2xl font-serif text-gold">
+          {isNew ? "Add New Product" : `Edit Product: ${product?.title_en}`}
+        </h1>
+      </div>
+
+      <ProductFormClient product={product} />
+    </div>
+  )
 }
