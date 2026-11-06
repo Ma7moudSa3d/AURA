@@ -62,56 +62,84 @@ const productSchema = z.object({
 });
 
 export async function saveProduct(fd: FormData): Promise<{ ok: boolean; error?: string }> {
-  await requireAdmin();
-  const id = (fd.get("id") as string) || null;
-
-  let variants = [];
   try {
-    const rawVariants = fd.get("variants") as string;
-    if (rawVariants) variants = JSON.parse(rawVariants);
-  } catch (e) {
-    console.error("Variants parse error:", e);
+    await requireAdmin();
+    const id = (fd.get("id") as string) || null;
+
+    let variants: any[] = [];
+    try {
+      const rawVariants = fd.get("variants") as string;
+      if (rawVariants) variants = JSON.parse(rawVariants);
+    } catch (e) {
+      console.error("Variants parse error:", e);
+    }
+
+    const parsed = productSchema.safeParse({
+      title_en: fd.get("title_en"),
+      title_ar: fd.get("title_ar"),
+      slug: fd.get("slug"),
+      description_en: fd.get("description_en") ?? "",
+      description_ar: fd.get("description_ar") ?? "",
+      price: num(fd.get("price")),
+      discount_price: num(fd.get("discount_price")),
+      discount_percent: num(fd.get("discount_percent")),
+      discount_start: (fd.get("discount_start") as string) || null,
+      discount_end: (fd.get("discount_end") as string) || null,
+      stock_qty: num(fd.get("stock_qty")),
+      low_stock_threshold: num(fd.get("low_stock_threshold")),
+      is_active: fd.get("is_active") === "on",
+      is_featured: fd.get("is_featured") === "on",
+      gender: fd.get("gender"),
+      collection: (fd.get("collection") as string) || null,
+      tags: list(fd.get("tags")),
+      volume: (fd.get("volume") as string) || "50ml",
+      concentration: (fd.get("concentration") as string) || "EDP",
+    });
+
+    if (!parsed.success) {
+      const firstError = parsed.error.issues[0];
+      return { ok: false, error: `${firstError?.path.join(".")}: ${firstError?.message}` };
+    }
+
+    const payload = {
+      ...parsed.data,
+      variants,
+    };
+
+    const sb = supabaseServer();
+    const res = id
+      ? await sb.from("products").update(payload).eq("id", id).select("id").single()
+      : await sb.from("products").insert(payload).select("id").single();
+
+    if (res.error || !res.data) {
+      return { ok: false, error: res.error?.message || "Failed to save product in DB" };
+    }
+
+    const pid = res.data.id;
+
+    await sb.from("product_notes").upsert({
+      product_id: pid,
+      top_notes: list(fd.get("top_notes")),
+      heart_notes: list(fd.get("heart_notes")),
+      base_notes: list(fd.get("base_notes")),
+    });
+
+    const files = fd.getAll("images").filter((f): f is File => f instanceof File && f.size > 0);
+    const { count } = await sb.from("product_images").select("id", { count: "exact", head: true }).eq("product_id", pid);
+    let order = count ?? 0;
+    for (const f of files) {
+      if (!/^image\/(jpeg|png|webp)$/.test(f.type) || f.size > 5 * 1024 * 1024) continue;
+      const path = `${pid}/${randomUUID()}.${f.type.split("/")[1]}`;
+      const up = await sb.storage.from("product-images").upload(path, f, { contentType: f.type });
+      if (!up.error) await sb.from("product_images").insert({ product_id: pid, path, sort_order: order++ });
+    }
+
+    revalidatePath("/", "layout");
+    return { ok: true };
+  } catch (err: any) {
+    console.error("saveProduct error:", err);
+    return { ok: false, error: err?.message || "An unexpected error occurred" };
   }
-
-  const parsed = productSchema.safeParse({
-    title_en: fd.get("title_en"), title_ar: fd.get("title_ar"), slug: fd.get("slug"),
-    description_en: fd.get("description_en") ?? "", description_ar: fd.get("description_ar") ?? "",
-    price: num(fd.get("price")), discount_price: num(fd.get("discount_price")), discount_percent: num(fd.get("discount_percent")),
-    discount_start: (fd.get("discount_start") as string) || null, discount_end: (fd.get("discount_end") as string) || null,
-    stock_qty: num(fd.get("stock_qty")), low_stock_threshold: num(fd.get("low_stock_threshold")),
-    is_active: fd.get("is_active") === "on", is_featured: fd.get("is_featured") === "on",
-    gender: fd.get("gender"), collection: (fd.get("collection") as string) || null, tags: list(fd.get("tags")),
-    volume: fd.get("volume") ?? "50ml", concentration: fd.get("concentration") ?? "EDP",
-  });
-
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.path.join(".") + ": " + parsed.error.issues[0]?.message };
-
-  const payload = {
-    ...parsed.data,
-    variants,
-  };
-
-  const sb = supabaseServer();
-  const res = id ? await sb.from("products").update(payload).eq("id", id).select("id").single()
-                 : await sb.from("products").insert(payload).select("id").single();
-
-  if (res.error || !res.data) return { ok: false, error: res.error?.message };
-  const pid = res.data.id;
-
-  await sb.from("product_notes").upsert({ product_id: pid, top_notes: list(fd.get("top_notes")), heart_notes: list(fd.get("heart_notes")), base_notes: list(fd.get("base_notes")) });
-
-  const files = fd.getAll("images").filter((f): f is File => f instanceof File && f.size > 0);
-  const { count } = await sb.from("product_images").select("id", { count: "exact", head: true }).eq("product_id", pid);
-  let order = count ?? 0;
-  for (const f of files) {
-    if (!/^image\/(jpeg|png|webp)$/.test(f.type) || f.size > 5 * 1024 * 1024) continue;
-    const path = `${pid}/${randomUUID()}.${f.type.split("/")[1]}`;
-    const up = await sb.storage.from("product-images").upload(path, f, { contentType: f.type });
-    if (!up.error) await sb.from("product_images").insert({ product_id: pid, path, sort_order: order++ });
-  }
-
-  revalidatePath("/", "layout");
-  return { ok: true };
 }
 
 export async function deleteProductImage(imageId: string) {
