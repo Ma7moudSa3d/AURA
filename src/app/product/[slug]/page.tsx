@@ -7,7 +7,6 @@ import AddToCart from "@/components/AddToCart";
 import ProductGallery from "@/components/ProductGallery";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import ReviewForm from "@/components/ReviewForm";
-import type { Product } from "@/lib/types";
 
 export async function generateMetadata({ params }: { params: { slug: string } }) {
   const { data } = await supabaseServer().from("products").select("title_en").eq("slug", params.slug).single();
@@ -37,7 +36,6 @@ export default async function ProductPage({ params }: { params: { slug: string }
     sb.from("reviews").select("id, rating, body, created_at").eq("product_id", p.id).eq("is_approved", true).order("created_at", { ascending: false }),
   ]);
 
-  // التحقق من شراء واستلام العميل للمنتج
   let canReview = false;
   if (user) {
     const { data: userOrders } = await sb
@@ -91,14 +89,13 @@ export default async function ProductPage({ params }: { params: { slug: string }
         <div className="mt-12">
           <h2 className="h-display mb-4 text-2xl">{t("reviews")}</h2>
           {(reviews ?? []).length === 0 && <p className="text-sm text-cream/50">{t("noReviews")}</p>}
-          {(reviews ?? []).map((r) => (
+          {(reviews ?? []).map((r: any) => (
             <div key={r.id} className="border-b border-white/5 py-3">
               <p className="text-gold">{"★".repeat(r.rating)}</p>
               <p className="text-sm text-cream/75">{r.body}</p>
             </div>
           ))}
 
-          {/* استدعاء نموذج التقييم مع شروط الحساب والشراء */}
           <ReviewForm productId={p.id} loggedIn={!!user} canReview={canReview} />
         </div>
       </div>
