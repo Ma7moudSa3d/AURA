@@ -24,12 +24,14 @@ export interface ProductImage {
   id: string;
   path: string;
   sort_order: number;
+  [key: string]: any;
 }
 
 export interface ProductNotes {
-  top_notes: string[];
-  heart_notes: string[];
-  base_notes: string[];
+  top_notes?: string[];
+  heart_notes?: string[];
+  base_notes?: string[];
+  [key: string]: any;
 }
 
 export interface Product {
@@ -48,7 +50,7 @@ export interface Product {
   low_stock_threshold: number;
   is_active: boolean;
   is_featured: boolean;
-  gender: "unisex" | "men" | "women";
+  gender: "unisex" | "men" | "women" | string;
   collection?: string | null;
   tags: string[];
   volume: string;
@@ -59,7 +61,8 @@ export interface Product {
   images?: ProductImage[];
   notes?: ProductNotes;
   product_images?: ProductImage[];
-  product_notes?: ProductNotes | ProductNotes[];
+  product_notes?: ProductNotes | ProductNotes[] | any;
+  [key: string]: any;
 }
 
 export interface CartItem {
@@ -72,6 +75,7 @@ export interface CartItem {
   discount_price?: number | null;
   qty: number;
   image?: string;
+  [key: string]: any;
 }
 
 export interface Coupon {
@@ -82,6 +86,7 @@ export interface Coupon {
   expires_at?: string | null;
   max_uses?: number | null;
   used_count?: number;
+  [key: string]: any;
 }
 
 export interface OrderItem {
@@ -92,6 +97,7 @@ export interface OrderItem {
   unit_price: number;
   volume?: string;
   products?: Partial<Product>;
+  [key: string]: any;
 }
 
 export interface Order {
@@ -117,6 +123,7 @@ export interface Order {
   admin_note?: string | null;
   created_at: string;
   order_items?: OrderItem[];
+  [key: string]: any;
 }
 
 export interface Settings {
@@ -138,6 +145,7 @@ export interface Settings {
   enable_instapay: boolean;
   enable_deposit: boolean;
   updated_at?: string;
+  [key: string]: any;
 }
 
 export interface Review {
@@ -148,4 +156,5 @@ export interface Review {
   comment: string;
   is_approved: boolean;
   created_at: string;
+  [key: string]: any;
 }
