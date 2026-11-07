@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@supabase/supabase-js";
 
 export async function applyCouponAction(code: string, subtotal: number) {
   try {
@@ -8,7 +8,27 @@ export async function applyCouponAction(code: string, subtotal: number) {
       return { success: false, error: "كود الخصم مطلوب / Coupon code required" };
     }
 
-    const supabase = await createClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      if (code.trim().toUpperCase() === "AURAFIRST") {
+        const discountAmount = Math.round(subtotal * 0.10);
+        return {
+          success: true,
+          coupon: {
+            id: "aurafirst-default",
+            code: "AURAFIRST",
+            discount_type: "percentage",
+            discount_value: 10,
+          },
+          discountAmount,
+        };
+      }
+      return { success: false, error: "تعذر الاتصال بقاعدة البيانات" };
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
     const cleanCode = code.trim().toUpperCase();
 
     // Query active coupon from database
@@ -23,7 +43,7 @@ export async function applyCouponAction(code: string, subtotal: number) {
       console.error("Error fetching coupon:", error);
     }
 
-    // Special fallback for AURAFIRST default code if coupons table is empty
+    // Special fallback for AURAFIRST default code
     if (!coupon && cleanCode === "AURAFIRST") {
       const discountAmount = Math.round(subtotal * 0.10); // 10% discount
       return {
