@@ -14,45 +14,46 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
 
   if (!product) return null;
 
-  const title = product.name || product.title_en || product.title_ar || "AURA Fragrance";
-  const description = product.description || product.description_en || product.description_ar || "";
+  const title = product.title_en || product.title_ar || product.name || "AURA Fragrance";
+  const description = product.description_en || product.description_ar || product.description || "";
+  const basePrice = Number(product.discount_price || product.price || 550);
 
-  // جلب رابط الصورة
-  const resolveImageUrl = (prod: any) => {
-    let raw = prod.image_url || prod.image;
-    if (!raw && Array.isArray(prod.product_images) && prod.product_images.length > 0) {
-      const first = prod.product_images[0];
-      raw = typeof first === "string" ? first : (first?.path || first?.image_url || first?.url);
+  // استخراج رابط الصورة الصحيح
+  const getImageUrl = (prod: any) => {
+    let path = "";
+    if (Array.isArray(prod.product_images) && prod.product_images.length > 0) {
+      const firstImg = prod.product_images[0];
+      path = typeof firstImg === "string" ? firstImg : (firstImg.path || firstImg.image_url || firstImg.url || "");
     }
-    if (!raw && prod.id) {
-      raw = prod.id;
+    if (!path) {
+      path = prod.image_url || prod.image || prod.id || "";
     }
-    if (!raw) return "https://placehold.co/600x800/0a0a0a/C5A059?text=AURA+Fragrance";
+    if (!path) return "https://placehold.co/600x800/0a0a0a/C5A059?text=AURA+Fragrance";
 
-    const path = String(raw).trim();
-    if (path.startsWith("http://") || path.startsWith("https://")) return path;
-
-    const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+    const pathStr = String(path).trim();
+    if (pathStr.startsWith("http://") || pathStr.startsWith("https://")) {
+      return pathStr;
+    }
+    const cleanPath = pathStr.startsWith("/") ? pathStr.slice(1) : pathStr;
     if (cleanPath.startsWith("products/")) {
       return `https://qjwisnczaffrouaadgzq.supabase.co/storage/v1/object/public/${cleanPath}`;
     }
     return `https://qjwisnczaffrouaadgzq.supabase.co/storage/v1/object/public/products/${cleanPath}`;
   };
 
-  const mainImageUrl = resolveImageUrl(product);
+  const mainImageUrl = getImageUrl(product);
 
-  // الأحجام والأسعار مرتبة تصاعدياً
+  // الأحجام المتاحة بأسعار تصاعدية
   const defaultVariants = [
-    { id: "5ml", volume: "5ML", price: Math.round((Number(product.price) || 550) * 0.2) || 80 },
-    { id: "30ml", volume: "30ML", price: Math.round((Number(product.price) || 550) * 0.65) || 350 },
-    { id: "50ml", volume: "50ML", price: Number(product.price) || 550 },
-    { id: "100ml", volume: "100ML", price: Math.round((Number(product.price) || 550) * 1.55) || 850 },
+    { id: "5ml", volume: "5ML", price: Math.round(basePrice * 0.2) || 80 },
+    { id: "30ml", volume: "30ML", price: Math.round(basePrice * 0.65) || 350 },
+    { id: "50ml", volume: "50ML", price: basePrice },
+    { id: "100ml", volume: "100ML", price: Math.round(basePrice * 1.55) || 850 },
   ];
 
-  let variants = defaultVariants;
-  if (Array.isArray(product.variants) && product.variants.length > 0) {
-    variants = [...product.variants].sort((a, b) => (parseInt(a.volume) || 0) - (parseInt(b.volume) || 0));
-  }
+  const variants = Array.isArray(product.variants) && product.variants.length > 0
+    ? [...product.variants].sort((a, b) => (parseInt(a.volume) || 0) - (parseInt(b.volume) || 0))
+    : defaultVariants;
 
   const [selectedVariant, setSelectedVariant] = useState(variants[2] || variants[0]);
   const [quantity, setQuantity] = useState(1);
@@ -74,30 +75,23 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
   };
 
   const whatsappMessage = encodeURIComponent(
-    `Hello AURA Fragrances, I would like to inquire about ordering:\n*Product:* ${title}\n*Size:* ${selectedVariant.volume}\n*Price:* ${selectedVariant.price} EGP`
+    `Hello AURA Fragrances, I would like to order:\n*Product:* ${title}\n*Size:* ${selectedVariant.volume}\n*Price:* ${selectedVariant.price} EGP`
   );
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-start">
-      {/* العمود الأيسر: صورة العطر */}
-      <div className="relative w-full aspect-[3/4] max-h-[600px] bg-zinc-900/80 rounded-lg overflow-hidden border border-zinc-800 group">
+      {/* صورة العطر في صفحة التفاصيل */}
+      <div className="relative w-full aspect-[3/4] max-h-[600px] bg-zinc-900 rounded-lg overflow-hidden border border-zinc-800">
         <Image
           src={mainImageUrl}
           alt={title}
           fill
           unoptimized
           priority
-          className="object-cover object-center transition-transform duration-700 group-hover:scale-105"
+          className="object-cover object-center"
           onError={(e: any) => {
-            const currentSrc = e.target.src;
-            if (!currentSrc.includes(".png") && !currentSrc.includes(".jpg") && !currentSrc.includes("placehold.co")) {
-              e.target.src = `${mainImageUrl}.png`;
-            } else if (currentSrc.includes(".png")) {
-              e.target.src = `${mainImageUrl}.jpg`;
-            } else {
-              e.target.srcset = "";
-              e.target.src = "https://placehold.co/600x800/0a0a0a/C5A059?text=AURA+Fragrance";
-            }
+            e.target.srcset = "";
+            e.target.src = "https://placehold.co/600x800/0a0a0a/C5A059?text=AURA+Fragrance";
           }}
         />
         {product.is_featured && (
@@ -107,7 +101,7 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
         )}
       </div>
 
-      {/* العمود الأيمن: تفاصيل العطر والطلب */}
+      {/* تفاصيل العطر واختيار الحجم والطلب */}
       <div className="flex flex-col space-y-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-serif text-white uppercase tracking-wider mb-2">
@@ -154,7 +148,7 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
           </div>
         )}
 
-        {/* الكمية والأزرار */}
+        {/* زر السلة والواتساب */}
         <div className="space-y-3 pt-2">
           <div className="flex items-center space-x-3 rtl:space-x-reverse mb-4">
             <span className="text-xs uppercase tracking-widest text-zinc-400">Quantity:</span>
