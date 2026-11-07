@@ -21,20 +21,18 @@ export default function AddToCart({
     if (stock <= 0) return
 
     try {
-      if (typeof addItem === "function") {
-        addItem({
-          id: `${product_id}-${volume}`,
-          product_id,
-          slug,
-          title_en: title,
-          title_ar: title,
-          title,
-          volume,
-          price,
-          qty: 1,
-          image: image || undefined,
-        } as any)
-      }
+      addItem({
+        id: `${product_id}-${volume}`,
+        product_id,
+        slug,
+        title_en: title,
+        title_ar: title,
+        title,
+        volume,
+        price,
+        qty: 1,
+        image: image || undefined,
+      })
     } catch (err) {
       console.error("Cart error:", err)
     }
