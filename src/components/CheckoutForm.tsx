@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
-import { useCartStore, CartItem } from "@/lib/cart-store";
+import { useCartStore } from "@/lib/cart-store";
 import { createOrder } from "@/app/actions/order";
 import { applyCouponAction } from "@/app/actions/coupon";
 
@@ -124,10 +124,11 @@ export function CheckoutForm({
   const [couponError, setCouponError] = useState<string | null>(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
 
-  // Totals calculation
-  const subtotal = items.reduce((sum: number, item: CartItem) => {
+  // Totals calculation safely handling undefined quantity
+  const subtotal = items.reduce((sum: number, item: any) => {
     const itemPrice = item.price ?? item.product?.price ?? 0;
-    return sum + itemPrice * item.quantity;
+    const qty = item.quantity ?? item.qty ?? 1;
+    return sum + itemPrice * qty;
   }, 0);
 
   const discountAmount = appliedCoupon ? appliedCoupon.discount : 0;
@@ -210,12 +211,12 @@ export function CheckoutForm({
       }
 
       // Format order items including volume variant info
-      const orderItems = items.map((i: CartItem) => ({
+      const orderItems = items.map((i: any) => ({
         product_id: i.product_id,
         volume: i.volume || "100ml",
         title: `${i.product?.title_en || "Perfume"} (${i.volume || "100ml"})`,
         price: i.price ?? i.product?.price ?? 0,
-        quantity: i.quantity,
+        quantity: i.quantity ?? i.qty ?? 1,
       }));
       formData.append("items", JSON.stringify(orderItems));
 
@@ -510,8 +511,9 @@ export function CheckoutForm({
 
             {/* Cart Items List */}
             <div className="space-y-4 max-h-80 overflow-y-auto pr-1 custom-scrollbar">
-              {items.map((item: CartItem) => {
+              {items.map((item: any) => {
                 const itemPrice = item.price ?? item.product?.price ?? 0;
+                const qty = item.quantity ?? item.qty ?? 1;
                 return (
                   <div key={item.id} className="flex gap-3 items-center border-b border-neutral-800/60 pb-3 last:border-0">
                     <div className="w-14 h-14 bg-neutral-950 border border-neutral-800 rounded-lg overflow-hidden shrink-0">
@@ -535,11 +537,11 @@ export function CheckoutForm({
                         {isAr ? "الحجم:" : "Volume:"} <span className="text-amber-300 font-medium">{item.volume || "100ml"}</span>
                       </p>
                       <p className="text-xs text-neutral-500 mt-0.5">
-                        {item.quantity} × {itemPrice} EGP
+                        {qty} × {itemPrice} EGP
                       </p>
                     </div>
                     <div className="text-right font-medium text-sm text-neutral-200">
-                      {itemPrice * item.quantity} EGP
+                      {itemPrice * qty} EGP
                     </div>
                   </div>
                 );
