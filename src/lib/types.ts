@@ -18,6 +18,7 @@ export interface ProductVariant {
   price: number;
   discount_price?: number | null;
   stock_qty?: number;
+  [key: string]: any;
 }
 
 export interface ProductImage {
