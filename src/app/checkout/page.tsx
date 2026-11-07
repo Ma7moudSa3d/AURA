@@ -1,36 +1,42 @@
-import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { supabaseServer } from "@/lib/supabase/server";
-import { getSettings, getUser } from "@/lib/data";
-import CheckoutForm from "@/components/CheckoutForm";
+import { CheckoutForm } from "@/components/CheckoutForm";
+import { createClient } from "@/lib/supabase/server";
 
-export const metadata = { title: "Checkout" };
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
-export default async function Checkout() {
-  const user = await getUser();
-  if (!user) redirect("/login?next=/checkout");
-
+export default async function CheckoutPage() {
   const t = await getTranslations("checkout");
-  const [settings, { data: profile }] = await Promise.all([
-    getSettings(),
-    supabaseServer().from("profiles").select("full_name, phone").eq("id", user.id).single(),
-  ]);
+  const supabase = await createClient();
 
-  const s = settings as any;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let profile = null;
+  if (user) {
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .maybeSingle();
+    profile = data;
+  }
+
+  const { data: s } = await supabase
+    .from("settings")
+    .select("*")
+    .eq("id", 1)
+    .maybeSingle();
 
   return (
-    <div className="container-x py-12">
+    <div className="max-w-6xl mx-auto px-4 py-12">
       <h1 className="h-display mb-10 text-5xl">{t("title")}</h1>
       <CheckoutForm
         defaults={{ name: profile?.full_name ?? "", phone: profile?.phone ?? "" }}
         shippingFee={Number(s?.shipping_fee ?? 60)}
         freeThreshold={Number(s?.free_shipping_threshold ?? 2000)}
         payNumber={process.env.NEXT_PUBLIC_PAYMENT_NUMBER ?? s?.contact_phone ?? "01016267377"}
-        enableCOD={s?.enable_cod !== false}
-        enableInstapay={s?.enable_instapay !== false}
-        enableDeposit={s?.enable_deposit !== false}
+        enableCOD={s?.enable_cod ?? true}
+        enableInstapay={s?.enable_instapay ?? true}
+        enableDeposit={s?.enable_deposit ?? true}
       />
     </div>
   );
