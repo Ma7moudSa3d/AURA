@@ -4,18 +4,6 @@
 import React, { useState } from "react"
 import { useCart } from "@/lib/cart"
 
-interface AddToCartProps {
-  product_id: string
-  slug: string
-  title: string
-  image?: string | null
-  price: number
-  stock: number
-  volume?: string
-  className?: string
-  [key: string]: any
-}
-
 export default function AddToCart({
   product_id,
   slug,
@@ -25,24 +13,31 @@ export default function AddToCart({
   stock,
   volume = "50ml",
   className = "",
-}: AddToCartProps) {
+}: any) {
   const { addItem } = useCart()
   const [added, setAdded] = useState(false)
 
   const handleAdd = () => {
     if (stock <= 0) return
 
-    // إعداد كائن المنتج للسلة شاملاً السعة والسعر المحدد
-    addItem({
-      id: `${product_id}-${volume}`,
-      product_id,
-      title_en: title,
-      title_ar: title,
-      volume,
-      price,
-      qty: 1,
-      image: image || undefined,
-    })
+    try {
+      if (typeof addItem === "function") {
+        addItem({
+          id: `${product_id}-${volume}`,
+          product_id,
+          slug,
+          title_en: title,
+          title_ar: title,
+          title,
+          volume,
+          price,
+          qty: 1,
+          image: image || undefined,
+        } as any)
+      }
+    } catch (err) {
+      console.error("Cart error:", err)
+    }
 
     setAdded(true)
     setTimeout(() => setAdded(false), 2000)
