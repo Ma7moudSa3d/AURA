@@ -31,7 +31,6 @@ export const useCartStore = create<CartState>()(
       items: [],
       addItem: (item: any) => {
         const current = get().items || []
-        // معرّف فريد يجمع بين معرّف المنتج والسعة المختارة
         const itemId = item.id || `${item.product_id}-${item.volume || "50ml"}`
         const existingIndex = current.findIndex((i) => i.id === itemId)
 
@@ -75,3 +74,32 @@ export const useCartStore = create<CartState>()(
     }
   )
 )
+
+// حساب إجمالي عدد العناصر في السلة (مطلوبة في Header.tsx)
+export function cartCount(items?: CartItem[]): number {
+  if (!items || !Array.isArray(items)) return 0
+  return items.reduce((sum, item) => sum + (item.qty || 1), 0)
+}
+
+// حساب المجموع الفرعي للسلة (مطلوبة في CartPage.tsx)
+export function cartSubtotal(items?: CartItem[]): number {
+  if (!items || !Array.isArray(items)) return 0
+  return items.reduce((sum, item) => {
+    const p = item.discount_price && item.discount_price > 0 ? Number(item.discount_price) : Number(item.price || 0)
+    return sum + p * (item.qty || 1)
+  }, 0)
+}
+
+// هوك useCart المتوافق مع كافة أجزاء التطبيق
+export function useCart() {
+  const store = useCartStore()
+  return {
+    items: store.items || [],
+    addItem: store.addItem,
+    removeItem: store.removeItem,
+    updateQty: store.updateQty,
+    clearCart: store.clearCart,
+    count: cartCount(store.items),
+    subtotal: cartSubtotal(store.items),
+  }
+}
