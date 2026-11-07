@@ -1,60 +1,143 @@
-"use client";
-import Link from "next/link";
-import Image from "next/image";
-import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { useLocale, useTranslations } from "next-intl";
-import { useCart, cartSubtotal } from "@/lib/cart-store";
-import { money } from "@/lib/format";
+// src/components/CartDrawer.tsx
+"use client"
 
-export default function CartDrawer({ loggedIn }: { loggedIn: boolean }) {
-  const t = useTranslations("cart");
-  const c = useTranslations("common");
-  const locale = useLocale();
-  const { lines, open, setOpen, remove, setQty } = useCart();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  if (!mounted) return null;
-  const rtl = locale === "ar";
+import React, { useEffect, useState } from "react"
+import Link from "next/link"
+import Image from "next/image"
+import { useLocale, useTranslations } from "next-intl"
+import { useCart, cartSubtotal, CartItem } from "@/lib/cart-store"
+import { money } from "@/lib/format"
+
+export default function CartDrawer({ loggedIn }: { loggedIn?: boolean }) {
+  const locale = useLocale()
+  const t = useTranslations("cart")
+  const c = useTranslations("common")
+  const [mounted, setMounted] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
+
+  const cart = useCart()
+  const items: CartItem[] = Array.isArray(cart) ? cart[0] : cart?.items || []
+  const removeItem = cart?.removeItem || cart?.removeFromCart || (() => {})
+  const updateQty = cart?.updateQty || cart?.updateQuantity || (() => {})
+
+  useEffect(() => {
+    setMounted(true)
+
+    const handleOpen = () => setIsOpen(true)
+    window.addEventListener("aura_open_cart", handleOpen)
+    return () => window.removeEventListener("aura_open_cart", handleOpen)
+  }, [])
+
+  if (!mounted) return null
+
+  const subtotal = cartSubtotal(items)
+
   return (
-    <AnimatePresence>
-      {open && (
-        <>
-          <motion.div className="fixed inset-0 z-50 bg-black/70" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpen(false)} />
-          <motion.aside role="dialog" aria-label={t("title")} className="fixed inset-y-0 end-0 z-50 flex w-full max-w-md flex-col border-s border-gold2/30 bg-surface"
-            initial={{ x: rtl ? "-100%" : "100%" }} animate={{ x: 0 }} exit={{ x: rtl ? "-100%" : "100%" }} transition={{ type: "spring", damping: 32, stiffness: 300 }}>
-            <div className="flex items-center justify-between border-b border-white/5 p-5">
-              <h2 className="h-display text-2xl">{t("title")}</h2>
-              <button onClick={() => setOpen(false)} aria-label="Close" className="text-xl hover:text-gold">✕</button>
+    <>
+      {/* Drawer Overlay */}
+      {isOpen && (
+        <div
+          onClick={() => setIsOpen(false)}
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm transition-opacity"
+        />
+      )}
+
+      {/* Drawer Panel */}
+      <div
+        className={`fixed top-0 bottom-0 right-0 z-50 w-full max-w-md bg-surface border-l border-white/10 shadow-2xl transition-transform duration-300 flex flex-col ${
+          isOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        {/* Drawer Header */}
+        <div className="flex items-center justify-between p-5 border-b border-white/10">
+          <h2 className="text-lg font-serif text-gold uppercase tracking-wider">{t("title")}</h2>
+          <button
+            type="button"
+            onClick={() => setIsOpen(false)}
+            className="text-cream/60 hover:text-white p-2 text-sm"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Drawer Body / Items List */}
+        <div className="flex-1 space-y-5 overflow-y-auto p-5">
+          {items.length === 0 && (
+            <div className="py-12 text-center">
+              <p className="text-cream/60 text-sm">{t("empty")}</p>
             </div>
-            <div className="flex-1 space-y-5 overflow-y-auto p-5">
-              {lines.length === 0 && <p className="text-cream/60">{t("empty")}</p>}
-              {lines.map((l) => (
-                <div key={l.product_id} className="flex gap-4">
-                  <div className="relative h-24 w-20 shrink-0 bg-surface2">{l.image && <Image src={l.image} alt="" fill sizes="80px" className="object-cover" />}</div>
-                  <div className="flex-1">
-                    <Link href={`/product/${l.slug}`} onClick={() => setOpen(false)} className="h-display text-lg hover:text-gold">{l.title}</Link>
-                    <p className="text-sm text-gold">{money(l.price, locale)} {c("currency")}</p>
-                    <div className="mt-2 flex items-center gap-3 text-sm">
-                      <button className="h-7 w-7 border border-white/15 hover:border-gold" onClick={() => setQty(l.product_id, l.qty - 1)}>−</button>
-                      <span>{l.qty}</span>
-                      <button className="h-7 w-7 border border-white/15 hover:border-gold" onClick={() => setQty(l.product_id, l.qty + 1)}>+</button>
-                      <button className="ms-auto text-xs text-cream/50 hover:text-gold" onClick={() => remove(l.product_id)}>{t("remove")}</button>
+          )}
+
+          {items.map((l: CartItem) => {
+            const price = l.discount_price && Number(l.discount_price) > 0 ? Number(l.discount_price) : Number(l.price || 0)
+            const qty = Number(l.qty || l.quantity || 1)
+
+            return (
+              <div key={l.id || `${l.product_id}-${l.volume}`} className="flex gap-4 border-b border-white/5 pb-4">
+                <div className="relative h-24 w-20 shrink-0 bg-ink border border-white/10 overflow-hidden rounded-sm">
+                  {l.image ? (
+                    <Image src={l.image} alt={l.title_en || "Product"} fill sizes="80px" className="object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-xs text-cream/40">AURA</div>
+                  )}
+                </div>
+
+                <div className="flex-1">
+                  <h3 className="font-serif text-cream text-sm">{locale === "ar" ? (l.title_ar || l.title_en) : (l.title_en || l.title_ar)}</h3>
+                  <p className="text-[10px] uppercase tracking-wider text-gold mt-0.5">{l.volume}</p>
+                  <p className="text-xs font-bold text-gold mt-1">{money(price, locale)} {c("currency")}</p>
+
+                  <div className="flex items-center justify-between mt-3">
+                    <div className="flex items-center border border-white/10 bg-ink">
+                      <button
+                        type="button"
+                        onClick={() => updateQty(l.id, Math.max(1, qty - 1))}
+                        className="px-2 py-0.5 text-xs hover:text-gold text-cream/70"
+                      >
+                        -
+                      </button>
+                      <span className="px-2.5 py-0.5 text-xs font-mono">{qty}</span>
+                      <button
+                        type="button"
+                        onClick={() => updateQty(l.id, qty + 1)}
+                        className="px-2 py-0.5 text-xs hover:text-gold text-cream/70"
+                      >
+                        +
+                      </button>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => removeItem(l.id)}
+                      className="text-[11px] text-red-400 hover:text-red-300"
+                    >
+                      {c("delete") || "Remove"}
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
-            {lines.length > 0 && (
-              <div className="space-y-3 border-t border-white/5 p-5">
-                <div className="flex justify-between"><span>{t("subtotal")}</span><span className="text-gold">{money(cartSubtotal(lines), locale)} {c("currency")}</span></div>
-                <p className="text-xs text-cream/50">{t("note")}</p>
-                <Link href={loggedIn ? "/checkout" : "/login?next=/checkout"} onClick={() => setOpen(false)} className="btn-gold w-full">{t("checkout")}</Link>
               </div>
-            )}
-          </motion.aside>
-        </>
-      )}
-    </AnimatePresence>
-  );
+            )
+          })}
+        </div>
+
+        {/* Drawer Footer */}
+        {items.length > 0 && (
+          <div className="p-5 border-t border-white/10 bg-ink/50 space-y-4">
+            <div className="flex justify-between items-center text-sm font-serif">
+              <span className="text-cream/70">{t("subtotal")}</span>
+              <span className="font-bold text-gold text-lg">{money(subtotal, locale)} {c("currency")}</span>
+            </div>
+
+            <Link
+              href="/checkout"
+              onClick={() => setIsOpen(false)}
+              className="w-full btn-gold py-3 text-center uppercase tracking-widest text-xs font-bold block"
+            >
+              {t("checkout")}
+            </Link>
+          </div>
+        )}
+      </div>
+    </>
+  )
 }
