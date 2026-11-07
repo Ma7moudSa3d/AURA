@@ -145,8 +145,8 @@ export function CheckoutForm({
     setIsApplyingCoupon(true);
     setCouponError(null);
     try {
-      const res = await applyCouponAction(couponCode.trim(), subtotal);
-      if (res.success && res.coupon) {
+      const res: any = await applyCouponAction(couponCode.trim(), subtotal);
+      if ((res?.ok || res?.success) && res?.coupon) {
         setAppliedCoupon({
           id: res.coupon.id,
           code: res.coupon.code,
@@ -154,7 +154,7 @@ export function CheckoutForm({
         });
         setCouponError(null);
       } else {
-        setCouponError(res.error || (isAr ? "كوبون غير صالح" : "Invalid coupon"));
+        setCouponError(res?.error || (isAr ? "كوبون غير صالح" : "Invalid coupon"));
       }
     } catch (err: any) {
       setCouponError(isAr ? "حدث خطأ أثناء تطبيق الكوبون" : "Error applying coupon");
@@ -224,13 +224,13 @@ export function CheckoutForm({
         formData.append("proof", proofFile);
       }
 
-      const res = await createOrder(formData);
+      const res: any = await createOrder(formData);
 
-      if (res.success && res.orderId) {
+      if ((res?.ok || res?.success) && res?.orderId) {
         clearCart();
         router.push(`/checkout/success?orderId=${res.orderId}`);
       } else {
-        setErrorMsg(res.error || (isAr ? "فشل إنشاء الطلب، حاول مرة أخرى" : "Failed to create order, please try again"));
+        setErrorMsg(res?.error || (isAr ? "فشل إنشاء الطلب، حاول مرة أخرى" : "Failed to create order, please try again"));
       }
     });
   };
