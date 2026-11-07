@@ -2,41 +2,38 @@ import React from "react";
 import { createClient } from "@supabase/supabase-js";
 import ProductPurchaseSection from "@/components/ProductPurchaseSection";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
-);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://qjwisnczaffrouaadgzq.supabase.co";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
-export default async function ProductPage({ params }: { params: any }) {
-  const { id } = await params;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-  // محاولة جلب البيانات
+type Props = {
+  params: Promise<{ id: string }> | { id: string };
+};
+
+export default async function ProductPage({ params }: Props) {
+  const resolvedParams = await params;
+  const productId = resolvedParams.id;
+
+  // جلب المنتج بشكل مباشر بدون جداول فرعية غير موجودة
   const { data: product, error } = await supabase
     .from("products")
-    .select("*, variants(*)")
-    .eq("id", id)
+    .select("*")
+    .eq("id", productId)
     .single();
 
-  // إذا كان هناك خطأ في الاتصال بقاعدة البيانات
-  if (error) {
+  if (error || !product) {
     return (
-      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-10">
-        <h1 className="text-2xl text-[#C5A059] mb-4">Database Connection Error</h1>
-        <p className="text-zinc-500">{error.message}</p>
-        <p className="mt-4 text-xs text-zinc-600">ID searched: {id}</p>
-        {(!process.env.NEXT_PUBLIC_SUPABASE_URL) && (
-          <p className="text-red-500 mt-2">Warning: SUPABASE_URL is missing in Environment Variables!</p>
-        )}
-      </div>
-    );
-  }
-
-  if (!product) {
-    return (
-      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-10">
-        <h1 className="text-2xl text-[#C5A059] mb-4">Fragrance Not Found</h1>
-        <p className="text-zinc-500">This ID does not exist in your products table.</p>
-        <p className="mt-4 text-xs text-zinc-600">ID: {id}</p>
+      <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col items-center justify-center p-6 text-center">
+        <h1 className="text-3xl font-serif text-[#C5A059] mb-4">Fragrance Not Found</h1>
+        <p className="text-zinc-400 mb-2 text-sm">Product ID: {productId}</p>
+        {error && <p className="text-red-400 text-xs mb-6 max-w-md">{error.message}</p>}
+        <a
+          href="/shop"
+          className="px-6 py-2 bg-transparent border border-[#C5A059] text-[#C5A059] font-bold uppercase tracking-widest text-xs rounded-sm hover:bg-[#C5A059] hover:text-black transition-all"
+        >
+          Return to Collection
+        </a>
       </div>
     );
   }
