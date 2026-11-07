@@ -8,83 +8,58 @@ export interface ProductCardProps {
   p?: any;
 }
 
-// Universal image extractor that resolves any DB structure
+// Ultra-reliable image extractor that preserves direct HTTP/HTTPS URLs
 function getImageUrl(prod: any): string | null {
   if (!prod) return null;
 
-  const candidates = [
-    prod.image_url,
-    prod.image,
-    prod.primary_image,
-    prod.cover_image,
-    prod.images,
-    prod.product_images,
-    prod.img,
-  ];
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-
-  function parseCandidate(item: any): string | null {
-    if (!item) return null;
-
-    if (typeof item === "string") {
-      const trimmed = item.trim();
-      if (!trimmed) return null;
-
-      // Check if stringified JSON
-      if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
-        try {
-          const parsed = JSON.parse(trimmed);
-          return parseCandidate(parsed);
-        } catch (e) {
-          // Ignore JSON parse error, treat as string
-        }
-      }
-
-      if (
-        trimmed.startsWith("http://") ||
-        trimmed.startsWith("https://") ||
-        trimmed.startsWith("data:") ||
-        trimmed.startsWith("blob:") ||
-        trimmed.startsWith("/")
-      ) {
-        return trimmed;
-      }
-
-      if (supabaseUrl) {
-        return `${supabaseUrl}/storage/v1/object/public/products/${trimmed}`;
-      }
-
-      return `/${trimmed}`;
+  // 1. Check primary image_url string
+  if (typeof prod.image_url === "string" && prod.image_url.trim()) {
+    const url = prod.image_url.trim();
+    if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("/")) {
+      return url;
     }
-
-    if (Array.isArray(item)) {
-      for (const el of item) {
-        const res = parseCandidate(el);
-        if (res) return res;
-      }
-      return null;
-    }
-
-    if (typeof item === "object") {
-      const objUrl =
-        item.image_url ||
-        item.url ||
-        item.publicUrl ||
-        item.src ||
-        item.path ||
-        item.link;
-      if (objUrl) {
-        return parseCandidate(objUrl);
-      }
-    }
-
-    return null;
   }
 
-  for (const candidate of candidates) {
-    const res = parseCandidate(candidate);
-    if (res) return res;
+  // 2. Check primary image string
+  if (typeof prod.image === "string" && prod.image.trim()) {
+    const url = prod.image.trim();
+    if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("/")) {
+      return url;
+    }
+  }
+
+  // 3. Check array of product images
+  const imgArray = Array.isArray(prod.product_images) && prod.product_images.length > 0
+    ? prod.product_images
+    : Array.isArray(prod.images) && prod.images.length > 0
+    ? prod.images
+    : null;
+
+  if (imgArray) {
+    const first = imgArray[0];
+    if (typeof first === "string" && first.trim()) {
+      if (first.startsWith("http") || first.startsWith("/")) return first;
+    } else if (first && typeof first === "object") {
+      const url = first.image_url || first.url || first.publicUrl || first.src;
+      if (typeof url === "string" && (url.startsWith("http") || url.startsWith("/"))) {
+        return url;
+      }
+    }
+  }
+
+  // Fallback for Supabase relative paths
+  const raw = prod.image_url || prod.image;
+  if (typeof raw === "string" && raw.trim()) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+    const clean = raw.trim().replace(/^\/+/, "");
+    if (clean.startsWith("http")) return clean;
+    if (supabaseUrl) {
+      if (clean.startsWith("storage/v1/object/public/")) {
+        return `${supabaseUrl}/${clean}`;
+      }
+      return `${supabaseUrl}/storage/v1/object/public/${clean}`;
+    }
+    return `/${clean}`;
   }
 
   return null;
@@ -115,7 +90,7 @@ export function ProductCard({ product, p: pProp }: ProductCardProps) {
     }
   }
 
-  // Extract numeric volume for ascending sorting
+  // Helper function to extract numeric volume value for ascending sorting
   const parseVolumeNum = (volStr: string): number => {
     if (!volStr) return 999;
     const match = volStr.match(/\d+/);
@@ -192,7 +167,7 @@ export function ProductCard({ product, p: pProp }: ProductCardProps) {
         {/* Card Body - Equalized Heights */}
         <div className="p-4 flex flex-col flex-1 justify-between gap-3">
           <div>
-            {/* Ascending Volumes with Matching Gold Theme Color */}
+            {/* Ascending Volumes with Exact Gold Theme Color */}
             <div className="text-[10px] font-mono tracking-widest text-[#C5A059] uppercase mb-1.5 truncate">
               {concentration} • {volumeBadges.join(" · ")}
             </div>
