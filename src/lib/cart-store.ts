@@ -24,6 +24,7 @@ export interface CartStoreState {
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
+  [key: string]: any;
 }
 
 export const useCartStore = create<CartStoreState>()(
@@ -35,7 +36,7 @@ export const useCartStore = create<CartStoreState>()(
       setOpen: (open: boolean) => set({ isOpen: open }),
       toggleCart: () => set((state) => ({ isOpen: !state.isOpen })),
       addItem: (newItem: any) => {
-        const currentItems = get().items || [];
+        const currentItems = get().items || get().lines || [];
         const itemId = newItem.id || `${newItem.product_id}-${newItem.volume || "default"}`;
         const existingIndex = currentItems.findIndex((i) => i.id === itemId);
 
@@ -46,29 +47,65 @@ export const useCartStore = create<CartStoreState>()(
           const currentQty = existing.quantity ?? existing.qty ?? 1;
           const addQty = newItem.quantity ?? newItem.qty ?? 1;
           const newQty = currentQty + addQty;
-          updatedItems[existingIndex] = { ...existing, quantity: newQty, qty: newQty };
+          updatedItems[existingIndex] = {
+            ...existing,
+            quantity: newQty,
+            qty: newQty,
+          };
         } else {
           const qty = newItem.quantity ?? newItem.qty ?? 1;
-          updatedItems = [...currentItems, { ...newItem, id: itemId, quantity: qty, qty: qty }];
+          const itemToAdd = {
+            ...newItem,
+            id: itemId,
+            quantity: qty,
+            qty: qty,
+          };
+          updatedItems = [...currentItems, itemToAdd];
         }
+
         set({ items: updatedItems, lines: updatedItems });
       },
       removeItem: (id: string) => {
-        const updated = (get().items || []).filter((i) => i.id !== id);
+        const currentItems = get().items || get().lines || [];
+        const updated = currentItems.filter((i) => i.id !== id);
         set({ items: updated, lines: updated });
       },
       updateQuantity: (id: string, quantity: number) => {
-        const currentItems = get().items || [];
-        const updated = quantity <= 0 
-          ? currentItems.filter((i) => i.id !== id)
-          : currentItems.map((i) => i.id === id ? { ...i, quantity, qty: quantity } : i);
-        set({ items: updated, lines: updated });
+        const currentItems = get().items || get().lines || [];
+        if (quantity <= 0) {
+          const updated = currentItems.filter((i) => i.id !== id);
+          set({ items: updated, lines: updated });
+        } else {
+          const updated = currentItems.map((i) =>
+            i.id === id ? { ...i, quantity, qty: quantity } : i
+          );
+          set({ items: updated, lines: updated });
+        }
       },
       clearCart: () => set({ items: [], lines: [] }),
     }),
-    { name: "aura-cart-storage" }
+    {
+      name: "aura-cart-storage",
+      partialize: (state) => ({ items: state.items, lines: state.items }),
+    }
   )
 );
 
-// تصدير useCart ليعمل كـ Hook مباشر
-export const useCart = useCartStore;
+export const useCart: any = useCartStore;
+
+export const cartCount = (items?: any[]): number => {
+  if (!items || !Array.isArray(items)) return 0;
+  return items.reduce((acc, item) => acc + (item.quantity ?? item.qty ?? 1), 0);
+};
+
+export const cartSubtotal = (items?: any[]): number => {
+  if (!items || !Array.isArray(items)) return 0;
+  return items.reduce((acc, item) => {
+    const price = item.price ?? item.product?.price ?? 0;
+    const qty = item.quantity ?? item.qty ?? 1;
+    return acc + price * qty;
+  }, 0);
+};
+
+export const getCart = () => useCartStore.getState();
+export const saveCart = () => {};
