@@ -3,11 +3,13 @@ import Link from "next/link"
 import { getLocale, getTranslations } from "next-intl/server"
 import { imageUrl, money, title } from "@/lib/format"
 
-export default async function ProductCard({ product }: { product: any }) {
+export default async function ProductCard({ product, p: pProp }: { product?: any; p?: any }) {
   const locale = await getLocale()
   const c = await getTranslations("common")
 
-  const p = product
+  const p = product || pProp
+  if (!p) return null
+
   const rawImages = p?.product_images ?? p?.images ?? []
   const mainImage = rawImages.length > 0 ? imageUrl(rawImages[0].path) : "/placeholder.jpg"
 
