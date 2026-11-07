@@ -1,101 +1,116 @@
-import { notFound } from "next/navigation";
-import { getLocale, getTranslations } from "next-intl/server";
-import { supabaseServer } from "@/lib/supabase/server";
-import { getSettings, getUser } from "@/lib/data";
-import { imageUrl, title } from "@/lib/format";
-import ProductGallery from "@/components/ProductGallery";
-import ReviewForm from "@/components/ReviewForm";
+import React from "react";
+import { createClient } from "@supabase/supabase-js";
 import ProductPurchaseSection from "@/components/ProductPurchaseSection";
 
-export async function generateMetadata({ params }: { params: { slug: string } }) {
-  const { data } = await supabaseServer().from("products").select("title_en").eq("slug", params.slug).single();
-  return { title: data?.title_en ?? "Product" };
-}
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  "https://qjwisnczaffrouaadgzq.supabase.co";
 
-export default async function ProductPage({ params }: { params: { slug: string } }) {
-  const locale = await getLocale();
-  const t = await getTranslations("product");
-  const n = await getTranslations("nav");
-  const c = await getTranslations("common");
-  const sb = supabaseServer();
-  
-  const { data } = await sb
-    .from("products")
-    .select("*, product_images(id, path, sort_order), product_notes(*)")
-    .eq("slug", params.slug)
-    .eq("is_active", true)
-    .single();
+const supabaseAnonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
-  if (!data) notFound();
-  const p = data as any;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-  const [settings, user, { data: reviews }] = await Promise.all([
-    getSettings(),
-    getUser(),
-    sb.from("reviews").select("id, rating, body, created_at").eq("product_id", p.id).eq("is_approved", true).order("created_at", { ascending: false }),
-  ]);
+type Props = {
+  params: Promise<{ slug: string }> | { slug: string };
+};
 
-  let canReview = false;
-  if (user) {
-    const { data: userOrders } = await sb
-      .from("orders")
-      .select("id, status, order_items!inner(product_id)")
-      .eq("user_id", user.id)
-      .ilike("status", "%delivered%")
-      .eq("order_items.product_id", p.id);
+export default async function ProductPage({ params }: Props) {
+  const resolvedParams = await params;
+  const slugOrId = resolvedParams?.slug;
 
-    canReview = Boolean(userOrders && userOrders.length > 0);
+  if (!slugOrId) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] px-6 text-center text-white">
+        <h1 className="font-serif text-3xl text-[#C5A059]">
+          Fragrance Not Found
+        </h1>
+      </div>
+    );
   }
 
-  const rawImages = p.product_images ?? p.images ?? [];
-  const imgs = [...rawImages].sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((i: any) => imageUrl(i.path));
-  const notes = Array.isArray(p.product_notes) ? p.product_notes[0] : p.product_notes;
-  const pyramid: [string, string[] | undefined][] = [[t("top"), notes?.top_notes], [t("heart"), notes?.heart_notes], [t("base"), notes?.base_notes]];
+  // البحث أولاً عن طريق الـ slug
+  let { data: product, error } = await supabase
+    .from("products")
+    .select("*, product_images(*)")
+    .eq("slug", slugOrId)
+    .maybeSingle();
 
-  return (
-    <div className="container-x grid gap-10 py-12 md:grid-cols-2 md:gap-16">
-      <ProductGallery images={imgs} alt={title(p, locale)} />
-      <div>
-        <p className="text-xs uppercase tracking-[.4em] text-gold">{p.collection} · {p.concentration}</p>
-        <h1 className="h-display mt-3 text-5xl">{title(p, locale)}</h1>
-        
-        <ProductPurchaseSection
-          product={p}
-          locale={locale}
-          currency={c("currency")}
-          image={imgs[0] ?? null}
-          whatsappNumber={settings?.whatsapp_number}
-          waMsg={t("waMsg", { name: title(p, locale) })}
-          waLabel={n("whatsapp")}
-        />
+  // إذا لم يجده بالـ slug يبحث عن طريق الـ id
+  if (!product) {
+    const { data: productById, error: idError } = await supabase
+      .from("products")
+      .select("*, product_images(*)")
+      .eq("id", slugOrId)
+      .maybeSingle();
+    
+    product = productById;
+    if (idError) error = idError;
+  }
 
-        {notes && (
-          <div className="mt-12">
-            <h2 className="h-display mb-4 text-2xl">{t("notes")}</h2>
-            <div className="divide-y divide-white/5 border border-white/5 bg-surface">
-              {pyramid.map(([label, arr]) => (
-                <div key={label} className="flex flex-col gap-1 p-4 sm:flex-row sm:gap-6">
-                  <span className="w-32 text-xs uppercase tracking-widest text-gold">{label}</span>
-                  <span className="text-cream/80">{(arr ?? []).join(" · ") || "—"}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+  if (error || !product) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#0A0A0A] px-6 text-center text-white">
+        <h1 className="font-serif text-3xl text-[#C5A059]">
+          Fragrance Not Found
+        </h1>
+
+        <p className="mt-3 text-sm text-zinc-500">
+          Slug / ID: {slugOrId}
+        </p>
+
+        {error && (
+          <p className="mt-3 max-w-xl text-xs text-red-400">
+            {error.message}
+          </p>
         )}
 
-        <div className="mt-12">
-          <h2 className="h-display mb-4 text-2xl">{t("reviews")}</h2>
-          {(reviews ?? []).length === 0 && <p className="text-sm text-cream/50">{t("noReviews")}</p>}
-          {(reviews ?? []).map((r: any) => (
-            <div key={r.id} className="border-b border-white/5 py-3">
-              <p className="text-gold">{"★".repeat(r.rating)}</p>
-              <p className="text-sm text-cream/75">{r.body}</p>
-            </div>
-          ))}
-
-          <ReviewForm productId={p.id} loggedIn={!!user} canReview={canReview} />
-        </div>
+        <a
+          href="/shop"
+          className="mt-6 border border-[#C5A059] px-6 py-3 text-xs font-bold uppercase tracking-[0.22em] text-[#C5A059] transition-all hover:bg-[#C5A059] hover:text-black"
+        >
+          Return To Collection
+        </a>
       </div>
-    </div>
+    );
+  }
+
+  // استخراج الصورة المباشرة من product_images
+  let imageUrl = "";
+
+  if (
+    Array.isArray(product.product_images) &&
+    product.product_images.length > 0
+  ) {
+    const firstImg = product.product_images[0];
+    imageUrl =
+      typeof firstImg === "string"
+        ? firstImg
+        : (firstImg?.image_url || firstImg?.url || firstImg?.path || "");
+  } else if (product.image_url || product.image) {
+    imageUrl = product.image_url || product.image;
+  }
+
+  // معالجة الرابط ليكون مباشر من Supabase Storage
+  if (imageUrl && !imageUrl.startsWith("http")) {
+    const cleanPath = imageUrl.startsWith("/") ? imageUrl.substring(1) : imageUrl;
+    imageUrl = cleanPath.startsWith("products/")
+      ? `https://qjwisnczaffrouaadgzq.supabase.co/storage/v1/object/public/${cleanPath}`
+      : `https://qjwisnczaffrouaadgzq.supabase.co/storage/v1/object/public/products/${cleanPath}`;
+  }
+
+  const normalizedProduct = {
+    ...product,
+    name: product.title_en || product.title_ar || "AURA Fragrance",
+    price: Number(product.discount_price || product.price || 0),
+    image_url: imageUrl,
+  };
+
+  return (
+    <main className="min-h-screen bg-[#0A0A0A] pt-24 text-white">
+      <div className="mx-auto max-w-7xl px-4 pb-16 md:px-8">
+        <ProductPurchaseSection product={normalizedProduct} />
+      </div>
+    </main>
   );
 }
