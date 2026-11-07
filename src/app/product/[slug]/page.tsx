@@ -59,7 +59,6 @@ export default async function ProductPage({ params }: { params: { slug: string }
         <p className="text-xs uppercase tracking-[.4em] text-gold">{p.collection} · {p.concentration}</p>
         <h1 className="h-display mt-3 text-5xl">{title(p, locale)}</h1>
         
-        {/* أزرار السعة والسعر التفاعلية للمشتري */}
         <ProductPurchaseSection
           product={p}
           locale={locale}
