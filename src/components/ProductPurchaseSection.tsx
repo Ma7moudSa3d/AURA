@@ -18,32 +18,36 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
   const description = product.description_en || product.description_ar || product.description || "";
   const basePrice = Number(product.discount_price || product.price || 550);
 
-  // استخراج رابط الصورة الصحيح
-  const getImageUrl = (prod: any) => {
+  // استخراج رابط الصورة مع الأمان التام
+  const resolveImageUrl = (prod: any): string => {
+    const FALLBACK = "https://placehold.co/600x800/0a0a0a/C5A059?text=AURA+Fragrance";
+
     let path = "";
     if (Array.isArray(prod.product_images) && prod.product_images.length > 0) {
       const firstImg = prod.product_images[0];
-      path = typeof firstImg === "string" ? firstImg : (firstImg.path || firstImg.image_url || firstImg.url || "");
+      path = typeof firstImg === "string" ? firstImg : (firstImg?.path || firstImg?.image_url || firstImg?.url || "");
     }
+
     if (!path) {
       path = prod.image_url || prod.image || prod.id || "";
     }
-    if (!path) return "https://placehold.co/600x800/0a0a0a/C5A059?text=AURA+Fragrance";
 
-    const pathStr = String(path).trim();
-    if (pathStr.startsWith("http://") || pathStr.startsWith("https://")) {
-      return pathStr;
+    if (!path || typeof path !== "string" || !path.trim()) return FALLBACK;
+
+    const clean = path.trim();
+    if (clean.startsWith("http://") || clean.startsWith("https://")) {
+      return clean;
     }
-    const cleanPath = pathStr.startsWith("/") ? pathStr.slice(1) : pathStr;
-    if (cleanPath.startsWith("products/")) {
-      return `https://qjwisnczaffrouaadgzq.supabase.co/storage/v1/object/public/${cleanPath}`;
-    }
-    return `https://qjwisnczaffrouaadgzq.supabase.co/storage/v1/object/public/products/${cleanPath}`;
+
+    const sanitizedPath = clean.replace(/^\/+/, "").replace(/^products\//, "");
+    if (!sanitizedPath) return FALLBACK;
+
+    return `https://qjwisnczaffrouaadgzq.supabase.co/storage/v1/object/public/products/${sanitizedPath}`;
   };
 
-  const mainImageUrl = getImageUrl(product);
+  const mainImageUrl = resolveImageUrl(product);
 
-  // الأحجام المتاحة بأسعار تصاعدية
+  // أحجام العطر مرتبة تصاعدياً مع تحسين الأسعار المسبقة
   const defaultVariants = [
     { id: "5ml", volume: "5ML", price: Math.round(basePrice * 0.2) || 80 },
     { id: "30ml", volume: "30ML", price: Math.round(basePrice * 0.65) || 350 },
@@ -80,7 +84,7 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-start">
-      {/* صورة العطر في صفحة التفاصيل */}
+      {/* صورة العطر الرئيسية */}
       <div className="relative w-full aspect-[3/4] max-h-[600px] bg-zinc-900 rounded-lg overflow-hidden border border-zinc-800">
         <Image
           src={mainImageUrl}
@@ -101,7 +105,7 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
         )}
       </div>
 
-      {/* تفاصيل العطر واختيار الحجم والطلب */}
+      {/* تفاصيل العطر والخيارات */}
       <div className="flex flex-col space-y-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-serif text-white uppercase tracking-wider mb-2">
@@ -112,7 +116,7 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
           </p>
         </div>
 
-        {/* اختيار الحجم */}
+        {/* خيارات الأحجام */}
         <div>
           <label className="block text-xs uppercase tracking-widest text-zinc-400 mb-3">
             Select Size / السعة :
@@ -139,7 +143,7 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
           </div>
         </div>
 
-        {/* الوصف */}
+        {/* وصف العطر */}
         {description && (
           <div className="border-t border-zinc-800/80 pt-4">
             <p className="text-xs text-zinc-300 leading-relaxed font-light">
