@@ -12,100 +12,144 @@ export interface ProductCardProps {
 }
 
 const ProductCard: React.FC<ProductCardProps> = (props) => {
-  const rawProduct = props.product || props.p;
+  const product = props.product || props.p;
   const { addItem } = useCart();
 
-  if (!rawProduct) return null;
+  if (!product) return null;
 
-  // جلب العنوان الحقيقي من أعمدة title_en / title_ar
-  const title = rawProduct.title_en || rawProduct.title_ar || rawProduct.name || "AURA Fragrance";
-  const basePrice = Number(rawProduct.discount_price || rawProduct.price) || 0;
+  // الاسم الصح من الداتا بيز
+  const name =
+    product.title_en ||
+    product.title_ar ||
+    product.name ||
+    "AURA Fragrance";
 
-  // جلب رابط الصورة من product_images أو image_url
-  let rawImage = rawProduct.image_url || rawProduct.image;
-  if (!rawImage && rawProduct.product_images && Array.isArray(rawProduct.product_images) && rawProduct.product_images.length > 0) {
-    const firstImg = rawProduct.product_images[0];
-    rawImage = typeof firstImg === "string" ? firstImg : (firstImg.image_url || firstImg.url || firstImg.path);
+  // السعر
+  const price = Number(product.discount_price || product.price || 0);
+
+  // جلب الصورة من product_images أو image_url
+  let rawImage: any = null;
+
+  if (Array.isArray(product.product_images) && product.product_images.length > 0) {
+    const firstImage = product.product_images[0];
+
+    rawImage =
+      firstImage?.image_url ||
+      firstImage?.url ||
+      firstImage?.path ||
+      firstImage;
+  } else {
+    rawImage = product.image_url || product.image || null;
   }
 
-  const getImageUrl = (imgData: any) => {
-    if (!imgData) return "https://placehold.co/600x800/0a0a0a/C5A059?text=AURA+Fragrance";
-    let path = Array.isArray(imgData) ? imgData[0] : imgData;
-    if (typeof path === "object" && path !== null) path = path.image_url || path.url || path.path || "";
-    if (typeof path !== "string" || !path.trim()) return "https://placehold.co/600x800/0a0a0a/C5A059?text=AURA+Fragrance";
+  // تحويل الصورة لرابط صحيح
+  const getImageUrl = (img: any) => {
+    if (!img) {
+      return "https://placehold.co/700x900/0a0a0a/C5A059?text=AURA+Fragrance";
+    }
 
-    path = path.trim();
-    if (path.startsWith("http://") || path.startsWith("https://")) return path;
+    if (Array.isArray(img)) img = img[0];
 
-    const cleanPath = path.startsWith("/") ? path.substring(1) : path;
+    if (typeof img === "object" && img !== null) {
+      img = img.image_url || img.url || img.path || "";
+    }
+
+    if (typeof img !== "string") {
+      return "https://placehold.co/700x900/0a0a0a/C5A059?text=AURA+Fragrance";
+    }
+
+    const path = img.trim();
+
+    if (!path) {
+      return "https://placehold.co/700x900/0a0a0a/C5A059?text=AURA+Fragrance";
+    }
+
+    if (path.startsWith("http://") || path.startsWith("https://")) {
+      return path;
+    }
+
+    const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+
     if (cleanPath.startsWith("products/")) {
       return `https://qjwisnczaffrouaadgzq.supabase.co/storage/v1/object/public/${cleanPath}`;
     }
+
     return `https://qjwisnczaffrouaadgzq.supabase.co/storage/v1/object/public/products/${cleanPath}`;
   };
 
   const imageUrl = getImageUrl(rawImage);
-  const defaultVolumes = ["5ML", "30ML", "50ML", "100ML"];
+  const volumes = ["5ML", "30ML", "50ML", "100ML"];
 
   return (
-    <div className="group relative flex flex-col bg-[#0A0A0A] border border-zinc-800 rounded-lg overflow-hidden transition-all duration-300 hover:border-[#C5A059]/50 h-full">
-      {/* صورة العطر */}
-      <Link href={`/product/${rawProduct.id}`} className="relative h-80 w-full overflow-hidden bg-zinc-900 block">
+    <div className="group flex h-full flex-col overflow-hidden rounded-lg border border-zinc-800 bg-[#090909] transition-all duration-300 hover:border-[#C5A059]/45">
+      {/* الصورة */}
+      <Link
+        href={`/product/${product.id}`}
+        className="relative block h-[340px] w-full shrink-0 overflow-hidden bg-[#111111]"
+      >
         <Image
           src={imageUrl}
-          alt={title}
+          alt={name}
           fill
           unoptimized
-          className="object-cover transition-transform duration-500 group-hover:scale-105"
-          onError={(e: any) => {
-            e.target.srcset = "";
-            e.target.src = "https://placehold.co/600x800/0a0a0a/C5A059?text=AURA+Fragrance";
-          }}
+          sizes="(max-width: 768px) 50vw, 25vw"
+          className="object-cover object-center transition-transform duration-500 group-hover:scale-105"
         />
-        {rawProduct.is_featured && (
-          <div className="absolute top-3 left-3 bg-[#C5A059] text-black text-[10px] font-bold px-2 py-1 rounded-sm uppercase tracking-widest shadow-lg">
+
+        {product.is_featured && (
+          <div className="absolute left-3 top-3 bg-[#C5A059] px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-black">
             Featured
           </div>
         )}
       </Link>
 
-      {/* تفاصيل العطر */}
-      <div className="p-4 flex flex-col flex-grow">
-        {/* أحجام العطر مرتبة تصاعدياً */}
-        <div className="flex flex-wrap gap-1.5 mb-3">
-          {defaultVolumes.map((vol) => (
-            <span key={vol} className="text-[9px] font-medium px-2 py-0.5 bg-zinc-800 text-zinc-400 border border-zinc-700 rounded-full">
+      {/* المحتوى */}
+      <div className="flex flex-1 flex-col p-4">
+        {/* الأحجام */}
+        <div className="mb-3 flex min-h-[26px] flex-wrap gap-1.5">
+          {volumes.map((vol) => (
+            <span
+              key={vol}
+              className="rounded-full border border-zinc-700 bg-zinc-900/80 px-2 py-1 text-[9px] uppercase tracking-wide text-zinc-400"
+            >
               {vol}
             </span>
           ))}
         </div>
 
-        <Link href={`/product/${rawProduct.id}`}>
-          <h3 className="text-white font-medium text-sm mb-1 group-hover:text-[#C5A059] transition-colors line-clamp-2 min-h-[2.5rem] uppercase tracking-wider">
-            {title}
+        {/* الاسم */}
+        <Link href={`/product/${product.id}`}>
+          <h3 className="line-clamp-2 min-h-[44px] text-[13px] font-medium uppercase leading-5 tracking-[0.14em] text-white transition-colors duration-300 group-hover:text-[#C5A059]">
+            {name}
           </h3>
         </Link>
-        
-        <p className="text-[#D4AF37] font-bold text-sm mt-auto">
-          <span className="text-zinc-500 text-[10px] font-normal mr-1 uppercase tracking-tighter">From</span>
-          {basePrice} EGP
+
+        {/* السعر */}
+        <p className="mt-auto pt-4 text-sm font-semibold uppercase tracking-wide text-[#D4AF37]">
+          <span className="mr-1 text-[10px] font-normal tracking-[0.12em] text-zinc-500">
+            From
+          </span>
+          {price} EGP
         </p>
 
+        {/* الزرار */}
         <button
+          type="button"
           onClick={() => {
             addItem({
-              id: `${rawProduct.id}-50ml`,
-              product_id: rawProduct.id,
-              name: title,
-              price: basePrice,
-              volume: rawProduct.volume || "50ML",
+              id: `${product.id}-50ml`,
+              product_id: product.id,
+              variant_id: null,
+              name,
+              price,
+              volume: product.volume || "50ML",
               image_url: imageUrl,
-              quantity: 1
+              quantity: 1,
             });
           }}
-          className="mt-4 w-full py-2 bg-transparent border border-[#C5A059] text-[#C5A059] text-xs font-bold rounded-sm hover:bg-[#C5A059] hover:text-black transition-all duration-300 uppercase tracking-widest"
+          className="mt-4 h-[40px] w-full border border-[#C5A059] text-[11px] font-bold uppercase tracking-[0.22em] text-[#C5A059] transition-all duration-300 hover:bg-[#C5A059] hover:text-black"
         >
-          Add to Cart
+          Add To Cart
         </button>
       </div>
     </div>
