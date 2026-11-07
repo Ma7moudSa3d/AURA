@@ -20,9 +20,17 @@ function IconWhatsApp(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-export function ProductPurchaseSection({ product }: { product: any }) {
-  const locale = useLocale();
-  const isAr = locale === "ar";
+export function ProductPurchaseSection({
+  product,
+  locale: propLocale,
+  currency = "EGP",
+  image,
+  whatsappNumber,
+  waMsg,
+  waLabel,
+}: any) {
+  const currentLocale = useLocale();
+  const isAr = (propLocale || currentLocale) === "ar";
   const addItem = useCartStore((s) => s.addItem);
   const setOpen = useCartStore((s) => s.setOpen);
 
@@ -80,7 +88,7 @@ export function ProductPurchaseSection({ product }: { product: any }) {
         id: product.id,
         title_en: product.title_en,
         title_ar: product.title_ar,
-        image_url: product.image_url || product.image,
+        image_url: image || product.image_url || product.image,
         price: activePrice,
       },
     });
@@ -90,20 +98,23 @@ export function ProductPurchaseSection({ product }: { product: any }) {
     setTimeout(() => setAdded(false), 2000);
   };
 
-  const whatsappMessage = encodeURIComponent(
-    `Hello AURA Fragrances, I would like to inquire about ${product?.title_en || "Perfume"} (${activeVolume} - ${activePrice} EGP).`
-  );
+  const rawPhone = whatsappNumber || "01016267377";
+  const cleanPhone = rawPhone.replace(/\D/g, "");
+  const formattedPhone = cleanPhone.startsWith("20") ? cleanPhone : `20${cleanPhone.replace(/^0+/, "")}`;
+
+  const defaultWaMsg = `Hello AURA Fragrances, I would like to inquire about ${product?.title_en || "Perfume"} (${activeVolume} - ${activePrice} ${currency}).`;
+  const whatsappMessage = encodeURIComponent(waMsg || defaultWaMsg);
 
   return (
     <div className="space-y-6">
       {/* Price Display */}
       <div className="flex items-baseline gap-3">
         <span className="text-3xl font-bold font-mono text-[#D4AF37]">
-          {activePrice} EGP
+          {activePrice} {currency}
         </span>
         {activeDiscount && Number(activeDiscount) > activePrice && (
           <span className="text-lg text-neutral-500 line-through font-mono">
-            {activeDiscount} EGP
+            {activeDiscount} {currency}
           </span>
         )}
       </div>
@@ -135,7 +146,7 @@ export function ProductPurchaseSection({ product }: { product: any }) {
                   {vol}
                 </span>
                 <span className="text-[11px] font-mono text-neutral-400">
-                  {price} EGP
+                  {price} {currency}
                 </span>
               </button>
             );
@@ -166,13 +177,13 @@ export function ProductPurchaseSection({ product }: { product: any }) {
         </button>
 
         <a
-          href={`https://wa.me/201016267377?text=${whatsappMessage}`}
+          href={`https://wa.me/${formattedPhone}?text=${whatsappMessage}`}
           target="_blank"
           rel="noopener noreferrer"
           className="w-full py-3.5 rounded-xl border border-neutral-800 hover:border-[#C5A059]/50 bg-neutral-950 text-neutral-300 hover:text-white font-medium text-xs uppercase tracking-widest transition flex items-center justify-center gap-2"
         >
           <IconWhatsApp className="w-4 h-4 text-emerald-500" />
-          <span>{isAr ? "تواصل عبر الواتساب" : "CHAT ON WHATSAPP"}</span>
+          <span>{waLabel || (isAr ? "تواصل عبر الواتساب" : "CHAT ON WHATSAPP")}</span>
         </a>
       </div>
     </div>
