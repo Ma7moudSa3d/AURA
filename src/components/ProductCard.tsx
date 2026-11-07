@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
 
@@ -9,72 +8,54 @@ export interface ProductCardProps {
   p?: any;
 }
 
-// Universal image extractor that resolves any DB structure or string format
+const SUPABASE_PROJECT_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  "https://qjwisnczaffrouaadgzq.supabase.co";
+
 function getImageUrl(prod: any): string | null {
   if (!prod) return null;
 
-  function cleanUrl(val: any): string | null {
-    if (!val) return null;
-
-    if (typeof val === "object") {
-      val = val.image_url || val.url || val.publicUrl || val.src || val.path || val.link;
-    }
-
-    if (typeof val !== "string") return null;
-
-    let s = val.trim();
+  function resolveUrl(s: any): string | null {
     if (!s) return null;
+    if (typeof s === "object") {
+      s = s.image_url || s.url || s.publicUrl || s.src || s.path || s.link;
+    }
+    if (typeof s !== "string") return null;
 
-    // Handle stringified JSON array or object
-    if (s.startsWith("[") || s.startsWith("{")) {
+    let str = s.trim();
+    if (!str) return null;
+
+    // Handle stringified JSON
+    if (str.startsWith("[") || str.startsWith("{")) {
       try {
-        const parsed = JSON.parse(s);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return cleanUrl(parsed[0]);
-        }
-        if (parsed && typeof parsed === "object") {
-          return cleanUrl(parsed);
-        }
-      } catch (e) {
-        // Ignore JSON parse errors
-      }
+        const parsed = JSON.parse(str);
+        if (Array.isArray(parsed) && parsed.length > 0) return resolveUrl(parsed[0]);
+        if (parsed && typeof parsed === "object") return resolveUrl(parsed);
+      } catch (e) {}
     }
 
-    // Remove stray quotes
-    s = s.replace(/^["']|["']$/g, "").trim();
-    if (!s) return null;
+    str = str.replace(/^["']|["']$/g, "").trim();
+    if (!str) return null;
 
-    // Standard HTTP / HTTPS URLs
-    if (s.startsWith("http://") || s.startsWith("https://")) {
-      return s;
+    if (str.startsWith("http://") || str.startsWith("https://")) {
+      return str;
     }
 
-    // Protocol relative URL //...
-    if (s.startsWith("//")) {
-      return `https:${s}`;
+    if (str.startsWith("//")) {
+      return `https:${str}`;
     }
 
-    // Supabase or external host without protocol prefix
-    if (s.includes("supabase.co") || s.includes("vercel.app") || s.includes("http")) {
-      return `https://${s.replace(/^https?:\/\//, "")}`;
+    const cleanPath = str.replace(/^\/+/, "");
+
+    if (cleanPath.startsWith("storage/v1/object/public/")) {
+      return `${SUPABASE_PROJECT_URL}/${cleanPath}`;
     }
 
-    // Relative root path
-    if (s.startsWith("/")) {
-      return s;
+    if (cleanPath.startsWith("products/")) {
+      return `${SUPABASE_PROJECT_URL}/storage/v1/object/public/${cleanPath}`;
     }
 
-    // Supabase Storage fallback for relative paths
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-    if (supabaseUrl) {
-      const cleanPath = s.replace(/^\/+/, "");
-      if (cleanPath.startsWith("storage/v1/object/public/")) {
-        return `${supabaseUrl.replace(/\/+$/, "")}/${cleanPath}`;
-      }
-      return `${supabaseUrl.replace(/\/+$/, "")}/storage/v1/object/public/products/${cleanPath}`;
-    }
-
-    return `/${s}`;
+    return `${SUPABASE_PROJECT_URL}/storage/v1/object/public/products/${cleanPath}`;
   }
 
   const fields = [
@@ -89,14 +70,13 @@ function getImageUrl(prod: any): string | null {
 
   for (const field of fields) {
     if (!field) continue;
-
     if (Array.isArray(field) && field.length > 0) {
       for (const item of field) {
-        const res = cleanUrl(item);
+        const res = resolveUrl(item);
         if (res) return res;
       }
     } else {
-      const res = cleanUrl(field);
+      const res = resolveUrl(field);
       if (res) return res;
     }
   }
@@ -108,8 +88,6 @@ export function ProductCard({ product, p: pProp }: ProductCardProps) {
   const prod = product || pProp;
   const locale = useLocale();
   const isAr = locale === "ar";
-
-  const [imgError, setImgError] = useState(false);
 
   if (!prod) return null;
 
@@ -186,13 +164,12 @@ export function ProductCard({ product, p: pProp }: ProductCardProps) {
       <Link href={`/product/${slug}`} className="flex flex-col h-full">
         {/* Fixed Aspect Ratio Image Container */}
         <div className="relative aspect-square w-full bg-neutral-950 overflow-hidden shrink-0">
-          {imageUrl && !imgError ? (
+          {imageUrl ? (
             <img
               src={imageUrl}
               alt={title || "AURA Perfume"}
               className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
               loading="lazy"
-              onError={() => setImgError(true)}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-neutral-600 font-serif text-2xl tracking-widest">
