@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
 
@@ -8,58 +9,96 @@ export interface ProductCardProps {
   p?: any;
 }
 
-// Ultra-reliable image extractor that preserves direct HTTP/HTTPS URLs
+// Universal image extractor that resolves any DB structure or string format
 function getImageUrl(prod: any): string | null {
   if (!prod) return null;
 
-  // 1. Check primary image_url string
-  if (typeof prod.image_url === "string" && prod.image_url.trim()) {
-    const url = prod.image_url.trim();
-    if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("/")) {
-      return url;
+  function cleanUrl(val: any): string | null {
+    if (!val) return null;
+
+    if (typeof val === "object") {
+      val = val.image_url || val.url || val.publicUrl || val.src || val.path || val.link;
     }
-  }
 
-  // 2. Check primary image string
-  if (typeof prod.image === "string" && prod.image.trim()) {
-    const url = prod.image.trim();
-    if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("/")) {
-      return url;
-    }
-  }
+    if (typeof val !== "string") return null;
 
-  // 3. Check array of product images
-  const imgArray = Array.isArray(prod.product_images) && prod.product_images.length > 0
-    ? prod.product_images
-    : Array.isArray(prod.images) && prod.images.length > 0
-    ? prod.images
-    : null;
+    let s = val.trim();
+    if (!s) return null;
 
-  if (imgArray) {
-    const first = imgArray[0];
-    if (typeof first === "string" && first.trim()) {
-      if (first.startsWith("http") || first.startsWith("/")) return first;
-    } else if (first && typeof first === "object") {
-      const url = first.image_url || first.url || first.publicUrl || first.src;
-      if (typeof url === "string" && (url.startsWith("http") || url.startsWith("/"))) {
-        return url;
+    // Handle stringified JSON array or object
+    if (s.startsWith("[") || s.startsWith("{")) {
+      try {
+        const parsed = JSON.parse(s);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return cleanUrl(parsed[0]);
+        }
+        if (parsed && typeof parsed === "object") {
+          return cleanUrl(parsed);
+        }
+      } catch (e) {
+        // Ignore JSON parse errors
       }
     }
-  }
 
-  // Fallback for Supabase relative paths
-  const raw = prod.image_url || prod.image;
-  if (typeof raw === "string" && raw.trim()) {
+    // Remove stray quotes
+    s = s.replace(/^["']|["']$/g, "").trim();
+    if (!s) return null;
+
+    // Standard HTTP / HTTPS URLs
+    if (s.startsWith("http://") || s.startsWith("https://")) {
+      return s;
+    }
+
+    // Protocol relative URL //...
+    if (s.startsWith("//")) {
+      return `https:${s}`;
+    }
+
+    // Supabase or external host without protocol prefix
+    if (s.includes("supabase.co") || s.includes("vercel.app") || s.includes("http")) {
+      return `https://${s.replace(/^https?:\/\//, "")}`;
+    }
+
+    // Relative root path
+    if (s.startsWith("/")) {
+      return s;
+    }
+
+    // Supabase Storage fallback for relative paths
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-    const clean = raw.trim().replace(/^\/+/, "");
-    if (clean.startsWith("http")) return clean;
     if (supabaseUrl) {
-      if (clean.startsWith("storage/v1/object/public/")) {
-        return `${supabaseUrl}/${clean}`;
+      const cleanPath = s.replace(/^\/+/, "");
+      if (cleanPath.startsWith("storage/v1/object/public/")) {
+        return `${supabaseUrl.replace(/\/+$/, "")}/${cleanPath}`;
       }
-      return `${supabaseUrl}/storage/v1/object/public/${clean}`;
+      return `${supabaseUrl.replace(/\/+$/, "")}/storage/v1/object/public/products/${cleanPath}`;
     }
-    return `/${clean}`;
+
+    return `/${s}`;
+  }
+
+  const fields = [
+    prod.image_url,
+    prod.image,
+    prod.product_images,
+    prod.images,
+    prod.primary_image,
+    prod.cover_image,
+    prod.img,
+  ];
+
+  for (const field of fields) {
+    if (!field) continue;
+
+    if (Array.isArray(field) && field.length > 0) {
+      for (const item of field) {
+        const res = cleanUrl(item);
+        if (res) return res;
+      }
+    } else {
+      const res = cleanUrl(field);
+      if (res) return res;
+    }
   }
 
   return null;
@@ -69,6 +108,8 @@ export function ProductCard({ product, p: pProp }: ProductCardProps) {
   const prod = product || pProp;
   const locale = useLocale();
   const isAr = locale === "ar";
+
+  const [imgError, setImgError] = useState(false);
 
   if (!prod) return null;
 
@@ -90,7 +131,7 @@ export function ProductCard({ product, p: pProp }: ProductCardProps) {
     }
   }
 
-  // Helper function to extract numeric volume value for ascending sorting
+  // Extract numeric volume for ascending sorting
   const parseVolumeNum = (volStr: string): number => {
     if (!volStr) return 999;
     const match = volStr.match(/\d+/);
@@ -145,12 +186,13 @@ export function ProductCard({ product, p: pProp }: ProductCardProps) {
       <Link href={`/product/${slug}`} className="flex flex-col h-full">
         {/* Fixed Aspect Ratio Image Container */}
         <div className="relative aspect-square w-full bg-neutral-950 overflow-hidden shrink-0">
-          {imageUrl ? (
+          {imageUrl && !imgError ? (
             <img
               src={imageUrl}
               alt={title || "AURA Perfume"}
               className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
               loading="lazy"
+              onError={() => setImgError(true)}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-neutral-600 font-serif text-2xl tracking-widest">
@@ -167,7 +209,7 @@ export function ProductCard({ product, p: pProp }: ProductCardProps) {
         {/* Card Body - Equalized Heights */}
         <div className="p-4 flex flex-col flex-1 justify-between gap-3">
           <div>
-            {/* Ascending Volumes with Exact Gold Theme Color */}
+            {/* Ascending Volumes with Matching Gold Theme Color */}
             <div className="text-[10px] font-mono tracking-widest text-[#C5A059] uppercase mb-1.5 truncate">
               {concentration} • {volumeBadges.join(" · ")}
             </div>
