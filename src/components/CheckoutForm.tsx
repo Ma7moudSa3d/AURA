@@ -1,412 +1,562 @@
-// src/components/CheckoutForm.tsx
-"use client"
+"use client";
 
-import React, { useState } from "react"
-import { useRouter } from "next/navigation"
-import { useLocale, useTranslations } from "next-intl"
-import { useCart, cartSubtotal, CartItem } from "@/lib/cart-store"
-import { createOrder } from "@/app/actions/order"
-import { money } from "@/lib/format"
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useTranslations, useLocale } from "next-intl";
+import { useCartStore, CartItem } from "@/lib/cart-store";
+import { createOrder } from "@/app/actions/order";
+import { applyCouponAction } from "@/app/actions/coupon";
+import { Check, ShieldCheck, Truck, Lock, AlertCircle, Upload, Banknote, CreditCard, PieChart } from "lucide-react";
 
-interface CheckoutFormProps {
-  enable_cod?: boolean
-  enable_instapay?: boolean
-  enable_deposit?: boolean
-  shipping_fee?: number
-  free_shipping_threshold?: number
+export interface CheckoutFormProps {
+  defaults?: { name?: string; phone?: string };
+  shippingFee?: number;
+  freeThreshold?: number;
+  payNumber?: string;
+  enableCOD?: boolean;
+  enableInstapay?: boolean;
+  enableDeposit?: boolean;
+  [key: string]: any;
 }
 
-export default function CheckoutForm({
-  enable_cod = true,
-  enable_instapay = true,
-  enable_deposit = true,
-  shipping_fee = 60,
-  free_shipping_threshold = 2000,
+export function CheckoutForm({
+  defaults,
+  shippingFee = 60,
+  freeThreshold = 2000,
+  payNumber = "01016267377",
+  enableCOD = true,
+  enableInstapay = true,
+  enableDeposit = true,
 }: CheckoutFormProps) {
-  const router = useRouter()
-  const locale = useLocale()
-  const t = useTranslations("checkout")
-  const c = useTranslations("common")
+  const t = useTranslations("checkout");
+  const locale = useLocale();
+  const isAr = locale === "ar";
+  const router = useRouter();
 
-  const cart = useCart()
-  const lines: CartItem[] = Array.isArray(cart) ? cart[0] : cart?.items || []
-  const clearCart = cart?.clearCart || (() => {})
+  const { items, clearCart } = useCartStore();
+  const [isPending, startTransition] = useTransition();
 
-  const subtotal = cartSubtotal(lines)
-  const isFreeShipping = subtotal >= free_shipping_threshold
-  const actualShippingFee = isFreeShipping ? 0 : shipping_fee
+  // Form State
+  const [fullName, setFullName] = useState(defaults?.name || "");
+  const [phone, setPhone] = useState(defaults?.phone || "");
+  const [governorate, setGovernorate] = useState("");
+  const [addressDetails, setAddressDetails] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"COD" | "INSTAPAY" | "DEPOSIT">("INSTAPAY");
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofPreview, setProofPreview] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const [paymentMethod, setPaymentMethod] = useState<"COD" | "INSTAPAY" | "DEPOSIT">(
-    enable_cod ? "COD" : enable_instapay ? "INSTAPAY" : "DEPOSIT"
-  )
+  // Coupon state
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{ id: string; code: string; discount: number } | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
 
-  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null)
-  const [couponCode, setCouponCode] = useState("")
-  const [couponError, setCouponError] = useState<string | null>(null)
+  // Totals calculation
+  const subtotal = items.reduce((sum: number, item: CartItem) => {
+    const itemPrice = item.price ?? item.product?.price ?? 0;
+    return sum + itemPrice * item.quantity;
+  }, 0);
 
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [proofFile, setProofFile] = useState<File | null>(null)
+  const discountAmount = appliedCoupon ? appliedCoupon.discount : 0;
+  const netSubtotal = Math.max(0, subtotal - discountAmount);
+  const currentShippingFee = netSubtotal >= freeThreshold || items.length === 0 ? 0 : shippingFee;
+  const totalAmount = netSubtotal + currentShippingFee;
 
-  // حساب المبالغ الإجمالية والدفع الجزئي (العربون 25%)
-  const discountAmount = appliedCoupon?.discount || 0
-  const totalAmount = Math.max(0, subtotal - discountAmount + actualShippingFee)
-  const depositAmount = paymentMethod === "DEPOSIT" ? Math.round(totalAmount * 0.25) : totalAmount
-  const remainingBalance = paymentMethod === "DEPOSIT" ? totalAmount - depositAmount : 0
+  // Deposit calculation (25%)
+  const depositAmount = Math.round(totalAmount * 0.25);
+  const remainingBalance = totalAmount - depositAmount;
 
-  const handleApplyCoupon = (e: React.FormEvent) => {
-    e.preventDefault()
-    setCouponError(null)
-    if (!couponCode.trim()) return
-
-    if (couponCode.trim().toUpperCase() === "AURAFIRST") {
-      const discount = Math.round(subtotal * 0.1)
-      setAppliedCoupon({ code: "AURAFIRST", discount })
-    } else {
-      setCouponError(locale === "ar" ? "كود الخصم غير صالح" : "Invalid coupon code")
-    }
-  }
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
-
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setIsApplyingCoupon(true);
+    setCouponError(null);
     try {
-      const formEl = e.currentTarget
-      const fd = new FormData(formEl)
+      const res = await applyCouponAction(couponCode.trim(), subtotal);
+      if (res.success && res.coupon) {
+        setAppliedCoupon({
+          id: res.coupon.id,
+          code: res.coupon.code,
+          discount: res.discountAmount ?? 0,
+        });
+        setCouponError(null);
+      } else {
+        setCouponError(res.error || (isAr ? "كوبون غير صالح" : "Invalid coupon"));
+      }
+    } catch (err: any) {
+      setCouponError(isAr ? "حدث خطأ أثناء تطبيق الكوبون" : "Error applying coupon");
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  };
 
-      // تجهيز عناصر السلة بصيغة JSON آمنة وبأنواع صريحة
-      const preparedItems = lines.map((l: CartItem) => ({
-        product_id: l.product_id,
-        volume: l.volume || "50ml",
-        price: l.discount_price && Number(l.discount_price) > 0 ? Number(l.discount_price) : Number(l.price || 0),
-        qty: Number(l.qty || l.quantity || 1),
-      }))
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setProofFile(file);
+      setProofPreview(URL.createObjectURL(file));
+    }
+  };
 
-      fd.set("items", JSON.stringify(preparedItems))
-      fd.set("payment_method", paymentMethod)
-      fd.set("subtotal", String(subtotal))
-      fd.set("shipping_fee", String(actualShippingFee))
-      fd.set("total_amount", String(totalAmount))
-      fd.set("deposit_amount", String(depositAmount))
-      fd.set("remaining_balance", String(remainingBalance))
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (items.length === 0) {
+      setErrorMsg(isAr ? "السلة فارغة" : "Cart is empty");
+      return;
+    }
+
+    if (!fullName.trim() || !phone.trim() || !governorate.trim() || !addressDetails.trim()) {
+      setErrorMsg(isAr ? "يرجى إكمال جميع الحقول المطلوبة" : "Please fill in all required fields");
+      return;
+    }
+
+    // Proof file required for InstaPay and Deposit
+    if ((paymentMethod === "INSTAPAY" || paymentMethod === "DEPOSIT") && !proofFile) {
+      setErrorMsg(isAr ? "يرجى إرفاق إيصال التحويل" : "Please upload transfer receipt");
+      return;
+    }
+
+    setErrorMsg(null);
+
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.append("full_name", fullName);
+      formData.append("phone", phone);
+      formData.append("governorate", governorate);
+      formData.append("address_details", addressDetails);
+      formData.append("payment_method", paymentMethod);
+      formData.append("subtotal", subtotal.toString());
+      formData.append("discount_amount", discountAmount.toString());
+      formData.append("shipping_fee", currentShippingFee.toString());
+      formData.append("total_amount", totalAmount.toString());
+      formData.append("deposit_amount", paymentMethod === "DEPOSIT" ? depositAmount.toString() : "0");
+      formData.append("remaining_balance", paymentMethod === "DEPOSIT" ? remainingBalance.toString() : "0");
 
       if (appliedCoupon) {
-        fd.set("coupon_code", appliedCoupon.code)
-        fd.set("discount_amount", String(appliedCoupon.discount))
+        formData.append("coupon_id", appliedCoupon.id);
+        formData.append("coupon_code", appliedCoupon.code);
       }
 
-      if (proofFile && paymentMethod !== "COD") {
-        fd.set("proof", proofFile)
+      // Format order items including volume variant info
+      const orderItems = items.map((i: CartItem) => ({
+        product_id: i.product_id,
+        volume: i.volume || "100ml",
+        title: `${i.product?.title_en || "Perfume"} (${i.volume || "100ml"})`,
+        price: i.price ?? i.product?.price ?? 0,
+        quantity: i.quantity,
+      }));
+      formData.append("items", JSON.stringify(orderItems));
+
+      if (proofFile) {
+        formData.append("proof", proofFile);
       }
 
-      const res = await createOrder(fd)
+      const res = await createOrder(formData);
 
-      if (!res?.ok) {
-        setError(res?.error || (locale === "ar" ? "فشل إنشاء الطلب" : "Failed to place order"))
-        setLoading(false)
-        return
+      if (res.success && res.orderId) {
+        clearCart();
+        router.push(`/checkout/success?orderId=${res.orderId}`);
+      } else {
+        setErrorMsg(res.error || (isAr ? "فشل إنشاء الطلب، حاول مرة أخرى" : "Failed to create order, please try again"));
       }
-
-      clearCart()
-      router.push(`/checkout/success?order_id=${res.order_id || ""}`)
-    } catch (err: any) {
-      setError(err?.message || "An unexpected error occurred")
-      setLoading(false)
-    }
-  }
-
-  if (lines.length === 0) {
-    return (
-      <div className="py-16 text-center border border-white/5 bg-surface">
-        <p className="text-cream/60 mb-4">{locale === "ar" ? "سلتك فارغة" : "Your cart is empty"}</p>
-        <button onClick={() => router.push("/shop")} className="btn-gold px-6 py-2.5 text-xs font-bold uppercase tracking-widest">
-          {locale === "ar" ? "تسوق الآن" : "Go to Shop"}
-        </button>
-      </div>
-    )
-  }
+    });
+  };
 
   return (
-    <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-      {/* قسم بيانات الشحن والدفع */}
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+      {/* Form Column */}
       <div className="lg:col-span-7 space-y-8">
-        {error && (
-          <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-400 text-xs rounded">
-            {error}
-          </div>
-        )}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Personal & Shipping Information */}
+          <div className="p-[1px] rounded-2xl bg-gradient-to-b from-amber-500/20 via-white/5 to-transparent">
+            <div className="bg-neutral-900/90 rounded-[15px] p-6 space-y-4 backdrop-blur-md">
+              <h2 className="text-xl font-medium tracking-wide border-b border-white/10 pb-3 text-amber-100 flex items-center gap-2">
+                <Truck className="w-5 h-5 text-amber-400" />
+                {isAr ? "بيانات الشحن والعنوان" : "Shipping Details"}
+              </h2>
 
-        {/* بيانات العميل والشحن */}
-        <div className="border border-white/10 bg-surface p-6 space-y-4">
-          <h2 className="text-gold font-serif text-lg uppercase tracking-wider border-b border-white/10 pb-3">
-            {locale === "ar" ? "بيانات الشحن" : "Shipping Information"}
-          </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <div>
+                  <label className="block text-xs uppercase tracking-wider text-neutral-400 mb-1.5">
+                    {isAr ? "الاسم بالكامل *" : "Full Name *"}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3.5 py-2.5 text-sm text-neutral-100 focus:outline-none focus:border-amber-500/60 transition"
+                    placeholder={isAr ? "أحمد محمد" : "John Doe"}
+                  />
+                </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[11px] uppercase tracking-wider text-gold mb-1">
-                {locale === "ar" ? "الاسم بالكامل *" : "Full Name *"}
-              </label>
-              <input
-                type="text"
-                name="customer_name"
-                required
-                className="w-full bg-ink border border-white/10 px-3 py-2 text-xs text-white focus:border-gold outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] uppercase tracking-wider text-gold mb-1">
-                {locale === "ar" ? "رقم الهاتف *" : "Phone Number *"}
-              </label>
-              <input
-                type="tel"
-                name="contact_phone"
-                required
-                className="w-full bg-ink border border-white/10 px-3 py-2 text-xs text-white focus:border-gold outline-none"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[11px] uppercase tracking-wider text-gold mb-1">
-              {locale === "ar" ? "البريد الإلكتروني *" : "Email Address *"}
-            </label>
-            <input
-              type="email"
-              name="contact_email"
-              required
-              className="w-full bg-ink border border-white/10 px-3 py-2 text-xs text-white focus:border-gold outline-none"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[11px] uppercase tracking-wider text-gold mb-1">
-                {locale === "ar" ? "المحافظة *" : "Governorate *"}
-              </label>
-              <input
-                type="text"
-                name="governorate"
-                required
-                className="w-full bg-ink border border-white/10 px-3 py-2 text-xs text-white focus:border-gold outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] uppercase tracking-wider text-gold mb-1">
-                {locale === "ar" ? "المدينة / المنطقة *" : "City / District *"}
-              </label>
-              <input
-                type="text"
-                name="city"
-                required
-                className="w-full bg-ink border border-white/10 px-3 py-2 text-xs text-white focus:border-gold outline-none"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[11px] uppercase tracking-wider text-gold mb-1">
-              {locale === "ar" ? "تفاصيل العنوان (الشارع / العمارة) *" : "Detailed Address *"}
-            </label>
-            <textarea
-              name="address_details"
-              rows={2}
-              required
-              className="w-full bg-ink border border-white/10 p-3 text-xs text-white focus:border-gold outline-none"
-            />
-          </div>
-        </div>
-
-        {/* اختيار طريقة الدفع */}
-        <div className="border border-white/10 bg-surface p-6 space-y-4">
-          <h2 className="text-gold font-serif text-lg uppercase tracking-wider border-b border-white/10 pb-3">
-            {locale === "ar" ? "طريقة الدفع" : "Payment Method"}
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {enable_cod && (
-              <button
-                type="button"
-                onClick={() => setPaymentMethod("COD")}
-                className={`p-4 border text-center transition flex flex-col items-center justify-center cursor-pointer ${
-                  paymentMethod === "COD"
-                    ? "border-gold bg-gold/15 text-gold font-bold"
-                    : "border-white/10 bg-ink text-cream/70 hover:border-white/30"
-                }`}
-              >
-                <span className="text-xs font-bold uppercase">{locale === "ar" ? "الدفع عند الاستلام" : "Cash on Delivery"}</span>
-                <span className="text-[10px] opacity-75 mt-1">{locale === "ar" ? "(COD)" : "(Full COD)"}</span>
-              </button>
-            )}
-
-            {enable_instapay && (
-              <button
-                type="button"
-                onClick={() => setPaymentMethod("INSTAPAY")}
-                className={`p-4 border text-center transition flex flex-col items-center justify-center cursor-pointer ${
-                  paymentMethod === "INSTAPAY"
-                    ? "border-gold bg-gold/15 text-gold font-bold"
-                    : "border-white/10 bg-ink text-cream/70 hover:border-white/30"
-                }`}
-              >
-                <span className="text-xs font-bold uppercase">{locale === "ar" ? "إنستا باي (كامل)" : "InstaPay (Full)"}</span>
-                <span className="text-[10px] opacity-75 mt-1">100% Online</span>
-              </button>
-            )}
-
-            {enable_deposit && (
-              <button
-                type="button"
-                onClick={() => setPaymentMethod("DEPOSIT")}
-                className={`p-4 border text-center transition flex flex-col items-center justify-center cursor-pointer ${
-                  paymentMethod === "DEPOSIT"
-                    ? "border-gold bg-gold/15 text-gold font-bold"
-                    : "border-white/10 bg-ink text-cream/70 hover:border-white/30"
-                }`}
-              >
-                <span className="text-xs font-bold uppercase">{locale === "ar" ? "عربون 25%" : "25% Deposit"}</span>
-                <span className="text-[10px] opacity-75 mt-1">{locale === "ar" ? "والباقي عند الاستلام" : "+ Rest COD"}</span>
-              </button>
-            )}
-          </div>
-
-          {/* رفع إثبات الدفع إن لم يكن COD */}
-          {paymentMethod !== "COD" && (
-            <div className="pt-4 border-t border-white/10 space-y-3 bg-ink/40 p-4 border rounded">
-              <p className="text-xs text-gold font-bold">
-                {locale === "ar"
-                  ? "تحويل إنستا باي إلى الحساب المعتمد ورفع إثبات التحويل:"
-                  : "Please transfer via InstaPay & upload receipt proof:"}
-              </p>
+                <div>
+                  <label className="block text-xs uppercase tracking-wider text-neutral-400 mb-1.5">
+                    {isAr ? "رقم الهاتف *" : "Phone Number *"}
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3.5 py-2.5 text-sm text-neutral-100 focus:outline-none focus:border-amber-500/60 transition"
+                    placeholder="01xxxxxxxxx"
+                  />
+                </div>
+              </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-wider text-cream/80 mb-1">
-                  {locale === "ar" ? "رقم المرجع / العملية *" : "Transaction Ref ID *"}
+                <label className="block text-xs uppercase tracking-wider text-neutral-400 mb-1.5">
+                  {isAr ? "المحافظة *" : "Governorate *"}
                 </label>
                 <input
                   type="text"
-                  name="transaction_reference_id"
-                  required={paymentMethod !== "COD"}
-                  placeholder="e.g. 1234567890"
-                  className="w-full bg-ink border border-white/10 px-3 py-2 text-xs text-white focus:border-gold outline-none"
+                  required
+                  value={governorate}
+                  onChange={(e) => setGovernorate(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3.5 py-2.5 text-sm text-neutral-100 focus:outline-none focus:border-amber-500/60 transition"
+                  placeholder={isAr ? "القاهرة / الجيزة / الإسكندرية..." : "Cairo, Giza, Alexandria..."}
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-wider text-cream/80 mb-1">
-                  {locale === "ar" ? "صورة إيصال التحويل (اختياري)" : "Payment Receipt Image"}
+                <label className="block text-xs uppercase tracking-wider text-neutral-400 mb-1.5">
+                  {isAr ? "العنوان بالتفصيل (الشارع / العمارة / الشقة) *" : "Detailed Address *"}
                 </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setProofFile(e.target.files?.[0] || null)}
-                  className="w-full bg-ink border border-white/10 p-2 text-xs text-cream/70"
+                <textarea
+                  required
+                  rows={3}
+                  value={addressDetails}
+                  onChange={(e) => setAddressDetails(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3.5 py-2.5 text-sm text-neutral-100 focus:outline-none focus:border-amber-500/60 transition resize-none"
+                  placeholder={isAr ? "اسم الشارع، رقم المبنى، رقم الشقة..." : "Street name, building number, apartment..."}
                 />
               </div>
             </div>
-          )}
-        </div>
-      </div>
+          </div>
 
-      {/* ملخص الطلب والتوتال */}
-      <div className="lg:col-span-5 space-y-6">
-        <div className="border border-white/10 bg-surface p-6 space-y-6 sticky top-24">
-          <h2 className="text-gold font-serif text-lg uppercase tracking-wider border-b border-white/10 pb-3">
-            {locale === "ar" ? "ملخص الطلب" : "Order Summary"}
-          </h2>
+          {/* Payment Method Selector */}
+          <div className="p-[1px] rounded-2xl bg-gradient-to-b from-amber-500/20 via-white/5 to-transparent">
+            <div className="bg-neutral-900/90 rounded-[15px] p-6 space-y-4 backdrop-blur-md">
+              <h2 className="text-xl font-medium tracking-wide border-b border-white/10 pb-3 text-amber-100 flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-amber-400" />
+                {isAr ? "طريقة الدفع" : "Payment Method"}
+              </h2>
 
-          <div className="divide-y divide-white/5 space-y-3 max-h-60 overflow-y-auto pr-1">
-            {lines.map((l: CartItem) => {
-              const price = l.discount_price && Number(l.discount_price) > 0 ? Number(l.discount_price) : Number(l.price || 0)
-              const qty = Number(l.qty || l.quantity || 1)
+              <div className="grid grid-cols-1 gap-3 pt-2">
+                {/* InstaPay Option */}
+                {enableInstapay && (
+                  <label
+                    className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition ${
+                      paymentMethod === "INSTAPAY"
+                        ? "bg-amber-500/10 border-amber-500/60 text-white"
+                        : "bg-neutral-950 border-neutral-800 text-neutral-300 hover:border-neutral-700"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="payment_method"
+                      value="INSTAPAY"
+                      checked={paymentMethod === "INSTAPAY"}
+                      onChange={() => setPaymentMethod("INSTAPAY")}
+                      className="mt-1 accent-amber-500"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-sm">
+                          {isAr ? "دفع كامل عبر InstaPay" : "Full Payment via InstaPay"}
+                        </span>
+                        <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded uppercase font-mono">
+                          InstaPay
+                        </span>
+                      </div>
+                      <p className="text-xs text-neutral-400 mt-1">
+                        {isAr
+                          ? `تحويل المبلغ بالكامل إلى الرقم: ${payNumber}`
+                          : `Transfer total amount to: ${payNumber}`}
+                      </p>
+                    </div>
+                  </label>
+                )}
 
-              return (
-                <div key={l.id || `${l.product_id}-${l.volume}`} className="flex justify-between items-center text-xs pt-3">
-                  <div>
-                    <p className="font-serif text-cream font-bold">{locale === "ar" ? (l.title_ar || l.title_en) : l.title_en}</p>
-                    <p className="text-[10px] text-gold uppercase">{l.volume} × {qty}</p>
+                {/* 25% Deposit Option */}
+                {enableDeposit && (
+                  <label
+                    className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition ${
+                      paymentMethod === "DEPOSIT"
+                        ? "bg-amber-500/10 border-amber-500/60 text-white"
+                        : "bg-neutral-950 border-neutral-800 text-neutral-300 hover:border-neutral-700"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="payment_method"
+                      value="DEPOSIT"
+                      checked={paymentMethod === "DEPOSIT"}
+                      onChange={() => setPaymentMethod("DEPOSIT")}
+                      className="mt-1 accent-amber-500"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-sm flex items-center gap-1.5">
+                          <PieChart className="w-4 h-4 text-amber-400" />
+                          {isAr ? "عربون 25% والباقي عند الاستلام" : "25% Deposit + COD Balance"}
+                        </span>
+                        <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded uppercase font-mono">
+                          25% Deposit
+                        </span>
+                      </div>
+                      <p className="text-xs text-neutral-400 mt-1">
+                        {isAr
+                          ? `دفع عربون بقيمة ${depositAmount} ج.م الآن عبر InstaPay والمتبقي (${remainingBalance} ج.م) كاش عند الاستلام`
+                          : `Pay ${depositAmount} EGP deposit via InstaPay now, remaining (${remainingBalance} EGP) on delivery`}
+                      </p>
+                    </div>
+                  </label>
+                )}
+
+                {/* Cash on Delivery Option */}
+                {enableCOD && (
+                  <label
+                    className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition ${
+                      paymentMethod === "COD"
+                        ? "bg-amber-500/10 border-amber-500/60 text-white"
+                        : "bg-neutral-950 border-neutral-800 text-neutral-300 hover:border-neutral-700"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="payment_method"
+                      value="COD"
+                      checked={paymentMethod === "COD"}
+                      onChange={() => setPaymentMethod("COD")}
+                      className="mt-1 accent-amber-500"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-sm flex items-center gap-1.5">
+                          <Banknote className="w-4 h-4 text-amber-400" />
+                          {isAr ? "الدفع عند الاستلام (كاش)" : "Cash on Delivery (COD)"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-neutral-400 mt-1">
+                        {isAr
+                          ? "دفع المبلغ بالكامل نقدًا لمندوب الشحن عند التسليم"
+                          : "Pay full amount in cash upon receiving your order"}
+                      </p>
+                    </div>
+                  </label>
+                )}
+              </div>
+
+              {/* InstaPay Transfer Info & Receipt Upload */}
+              {(paymentMethod === "INSTAPAY" || paymentMethod === "DEPOSIT") && (
+                <div className="mt-4 p-4 rounded-xl bg-neutral-950/80 border border-amber-500/30 space-y-3">
+                  <div className="text-xs text-amber-200/90 leading-relaxed">
+                    <p className="font-semibold text-amber-400 mb-1">
+                      {isAr ? "تعليمات التحويل:" : "Transfer Instructions:"}
+                    </p>
+                    <p>
+                      1. {isAr ? "افتح تطبيق InstaPay وقم بتحويل مبلغ" : "Open InstaPay app and transfer"}{" "}
+                      <strong className="text-white underline">
+                        {paymentMethod === "DEPOSIT" ? `${depositAmount} EGP` : `${totalAmount} EGP`}
+                      </strong>{" "}
+                      {isAr ? "إلى الرقم:" : "to phone:"}{" "}
+                      <span className="font-mono bg-neutral-900 px-2 py-0.5 rounded text-amber-300 select-all">
+                        {payNumber}
+                      </span>
+                    </p>
+                    <p className="mt-1">
+                      2. {isAr ? "قم بإلتقاط صورة لشاشة إيصال التحويل وترفيقها بالأسفل." : "Take a screenshot of the payment receipt and upload below."}
+                    </p>
                   </div>
-                  <span className="font-mono text-gold">{money(price * qty, locale)} {c("currency")}</span>
+
+                  <div>
+                    <label className="block text-xs uppercase tracking-wider text-neutral-400 mb-1.5">
+                      {isAr ? "إرفاق إيصال التحويل (صورة) *" : "Upload Payment Receipt (Image) *"}
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-2 px-4 py-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 rounded-lg cursor-pointer text-xs text-neutral-200 transition">
+                        <Upload className="w-4 h-4 text-amber-400" />
+                        <span>{proofFile ? proofFile.name : isAr ? "اختر صورة الإيصال..." : "Choose Image File..."}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFileChange}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                    {proofPreview && (
+                      <div className="mt-3">
+                        <img
+                          src={proofPreview}
+                          alt="Receipt Preview"
+                          className="h-28 rounded-lg border border-neutral-700 object-cover"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )
-            })}
+              )}
+            </div>
           </div>
 
-          {/* تطبيق الخصم */}
-          <div className="pt-4 border-t border-white/10">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={couponCode}
-                onChange={(e) => setCouponCode(e.target.value)}
-                placeholder={locale === "ar" ? "كود الخصم" : "Coupon code"}
-                className="flex-1 bg-ink border border-white/10 px-3 py-2 text-xs text-white focus:border-gold outline-none uppercase"
-              />
-              <button
-                type="button"
-                onClick={handleApplyCoupon}
-                className="btn-gold px-4 text-xs font-bold uppercase tracking-wider"
-              >
-                {locale === "ar" ? "تطبيق" : "Apply"}
-              </button>
+          {/* Error Banner */}
+          {errorMsg && (
+            <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-sm flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 shrink-0 text-red-400" />
+              <span>{errorMsg}</span>
             </div>
-            {couponError && <p className="text-[11px] text-red-400 mt-1">{couponError}</p>}
-            {appliedCoupon && (
-              <p className="text-[11px] text-emerald-400 mt-1">
-                ✓ {appliedCoupon.code} applied (-{appliedCoupon.discount} EGP)
-              </p>
-            )}
-          </div>
+          )}
 
-          {/* الحسابات النهائية */}
-          <div className="space-y-2 border-t border-white/10 pt-4 text-xs">
-            <div className="flex justify-between text-cream/70">
-              <span>{locale === "ar" ? "المجموع الفرعي" : "Subtotal"}</span>
-              <span>{money(subtotal, locale)} {c("currency")}</span>
-            </div>
-
-            {appliedCoupon && (
-              <div className="flex justify-between text-emerald-400">
-                <span>{locale === "ar" ? "الخصم" : "Discount"}</span>
-                <span>-{money(appliedCoupon.discount, locale)} {c("currency")}</span>
-              </div>
-            )}
-
-            <div className="flex justify-between text-cream/70">
-              <span>{locale === "ar" ? "الشحن" : "Shipping"}</span>
-              <span>{actualShippingFee === 0 ? (locale === "ar" ? "مجاني" : "FREE") : `${actualShippingFee} ${c("currency")}`}</span>
-            </div>
-
-            <div className="flex justify-between font-serif text-base text-gold font-bold border-t border-white/10 pt-3">
-              <span>{locale === "ar" ? "الإجمالي" : "Total Amount"}</span>
-              <span>{money(totalAmount, locale)} {c("currency")}</span>
-            </div>
-
-            {paymentMethod === "DEPOSIT" && (
-              <div className="bg-gold/10 border border-gold/20 p-3 rounded mt-3 space-y-1 text-[11px]">
-                <div className="flex justify-between font-bold text-gold">
-                  <span>{locale === "ar" ? "المطلوب سداده الآن (25% عربون):" : "Pay Now (25% Deposit):"}</span>
-                  <span>{money(depositAmount, locale)} {c("currency")}</span>
-                </div>
-                <div className="flex justify-between text-cream/70">
-                  <span>{locale === "ar" ? "المتبقي عند الاستلام:" : "Remaining on Delivery:"}</span>
-                  <span>{money(remainingBalance, locale)} {c("currency")}</span>
-                </div>
-              </div>
-            )}
-          </div>
-
+          {/* Submit Button */}
           <button
             type="submit"
-            disabled={loading}
-            className="w-full btn-gold py-3.5 uppercase tracking-widest text-xs font-bold transition disabled:opacity-50"
+            disabled={isPending || items.length === 0}
+            className="w-full py-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-neutral-950 font-bold tracking-wide uppercase shadow-lg shadow-amber-500/10 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2 text-base"
           >
-            {loading ? (locale === "ar" ? "جاري تسجيل الطلب..." : "Processing Order...") : (locale === "ar" ? "إتمام الطلب الآن" : "PLACE ORDER NOW")}
+            <Lock className="w-5 h-5" />
+            {isPending
+              ? isAr
+                ? "جاري تأكيد الطلب..."
+                : "Processing Order..."
+              : isAr
+              ? `تأكيد الطلب • ${totalAmount} ج.م`
+              : `Confirm Order • ${totalAmount} EGP`}
           </button>
+        </form>
+      </div>
+
+      {/* Summary Column */}
+      <div className="lg:col-span-5 space-y-6">
+        <div className="p-[1px] rounded-2xl bg-gradient-to-b from-amber-500/20 via-white/5 to-transparent sticky top-24">
+          <div className="bg-neutral-900/90 rounded-[15px] p-6 space-y-6 backdrop-blur-md">
+            <h2 className="text-xl font-medium tracking-wide border-b border-white/10 pb-3 text-amber-100">
+              {isAr ? "ملخص الطلب" : "Order Summary"}
+            </h2>
+
+            {/* Cart Items List */}
+            <div className="space-y-4 max-h-80 overflow-y-auto pr-1 custom-scrollbar">
+              {items.map((item: CartItem) => {
+                const itemPrice = item.price ?? item.product?.price ?? 0;
+                return (
+                  <div key={item.id} className="flex gap-3 items-center border-b border-neutral-800/60 pb-3 last:border-0">
+                    <div className="w-14 h-14 bg-neutral-950 border border-neutral-800 rounded-lg overflow-hidden shrink-0">
+                      {item.product?.image_url ? (
+                        <img
+                          src={item.product.image_url}
+                          alt={item.product.title_en}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-xs text-neutral-600">
+                          AURA
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-medium text-neutral-200 truncate">
+                        {isAr ? item.product?.title_ar || item.product?.title_en : item.product?.title_en}
+                      </h4>
+                      <p className="text-xs text-neutral-400">
+                        {isAr ? "الحجم:" : "Volume:"} <span className="text-amber-300 font-medium">{item.volume || "100ml"}</span>
+                      </p>
+                      <p className="text-xs text-neutral-500 mt-0.5">
+                        {item.quantity} × {itemPrice} EGP
+                      </p>
+                    </div>
+                    <div className="text-right font-medium text-sm text-neutral-200">
+                      {itemPrice * item.quantity} EGP
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Coupon Code Section */}
+            <div className="pt-2 border-t border-white/10 space-y-2">
+              <label className="block text-xs uppercase tracking-wider text-neutral-400">
+                {isAr ? "كود الخصم (كوبون)" : "Discount Coupon"}
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value)}
+                  placeholder="AURAFIRST"
+                  className="flex-1 bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-neutral-100 uppercase tracking-widest focus:outline-none focus:border-amber-500/60"
+                />
+                <button
+                  type="button"
+                  onClick={handleApplyCoupon}
+                  disabled={isApplyingCoupon || !couponCode.trim()}
+                  className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-100 rounded-lg text-xs font-semibold uppercase tracking-wider disabled:opacity-50 transition"
+                >
+                  {isApplyingCoupon ? "..." : isAr ? "تطبيق" : "Apply"}
+                </button>
+              </div>
+              {appliedCoupon && (
+                <p className="text-xs text-emerald-400 flex items-center gap-1">
+                  <Check className="w-3.5 h-3.5" />
+                  {isAr ? `تم تطبيق الكوبون (${appliedCoupon.code})` : `Coupon applied (${appliedCoupon.code})`}
+                </p>
+              )}
+              {couponError && <p className="text-xs text-red-400">{couponError}</p>}
+            </div>
+
+            {/* Financial Totals */}
+            <div className="space-y-2 pt-3 border-t border-white/10 text-sm">
+              <div className="flex justify-between text-neutral-400">
+                <span>{isAr ? "المجموع الفرعي" : "Subtotal"}</span>
+                <span>{subtotal} EGP</span>
+              </div>
+
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-emerald-400">
+                  <span>{isAr ? "الخصم" : "Discount"}</span>
+                  <span>-{discountAmount} EGP</span>
+                </div>
+              )}
+
+              <div className="flex justify-between text-neutral-400">
+                <span>{isAr ? "رسوم الشحن" : "Shipping"}</span>
+                <span>
+                  {currentShippingFee === 0 ? (
+                    <span className="text-emerald-400 font-medium">{isAr ? "مجاني" : "FREE"}</span>
+                  ) : (
+                    `${currentShippingFee} EGP`
+                  )}
+                </span>
+              </div>
+
+              <div className="flex justify-between text-lg font-bold text-amber-100 pt-3 border-t border-neutral-800">
+                <span>{isAr ? "الإجمالي الكلي" : "Total"}</span>
+                <span className="text-amber-400">{totalAmount} EGP</span>
+              </div>
+
+              {/* Deposit Breakdown */}
+              {paymentMethod === "DEPOSIT" && (
+                <div className="mt-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs space-y-1">
+                  <div className="flex justify-between text-amber-300 font-medium">
+                    <span>{isAr ? "العربون المطلوب الآن (25%):" : "Deposit Required Now (25%):"}</span>
+                    <span>{depositAmount} EGP</span>
+                  </div>
+                  <div className="flex justify-between text-neutral-400">
+                    <span>{isAr ? "المتبقي عند الاستلام:" : "Balance on Delivery:"}</span>
+                    <span>{remainingBalance} EGP</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2 text-[11px] text-neutral-500 flex items-center justify-center gap-1">
+              <ShieldCheck className="w-4 h-4 text-amber-500/80" />
+              <span>{isAr ? "دفع آمن 100% ومشفر بواسطة AURA" : "100% Secure Checkout Guaranteed"}</span>
+            </div>
+          </div>
         </div>
       </div>
-    </form>
-  )
+    </div>
+  );
 }
