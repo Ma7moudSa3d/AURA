@@ -23,14 +23,14 @@ export default async function ProductPage({ params }: Props) {
     );
   }
 
-  // البحث عن العطر بالـ ID أولاً
+  // البحث برمز الـ UUID أولاً
   let { data: product } = await supabase
     .from("products")
     .select("*, product_images(*)")
     .eq("id", slugOrId)
     .maybeSingle();
 
-  // إذا لم يجد العطر بالـ ID يبحث بالـ slug
+  // إن لم يجده بالـ UUID يبحث بالـ slug
   if (!product) {
     const { data: productBySlug } = await supabase
       .from("products")
