@@ -1,10 +1,9 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
-import { getProductImageUrl, SVG_PLACEHOLDER } from "@/lib/supabase-image";
+import { getCleanImageUrl, DEFAULT_PLACEHOLDER } from "@/lib/image-utils";
 
 export interface ProductCardProps {
   product?: any;
@@ -22,23 +21,20 @@ const ProductCard: React.FC<ProductCardProps> = (props) => {
   const basePrice = Number(item.discount_price || item.price || 0);
   const productLink = `/product/${item.slug || item.id}`;
 
-  const imageUrl = getProductImageUrl(item);
+  const imageUrl = getCleanImageUrl(item);
   const defaultVolumes = ["5ML", "30ML", "50ML", "100ML"];
 
   return (
     <div className="group relative flex flex-col bg-[#0A0A0A] border border-zinc-800 rounded-lg overflow-hidden transition-all duration-300 hover:border-[#C5A059]/50 h-full">
-      {/* صورة العطر متناسقة الأبعاد */}
+      {/* صورة العطر */}
       <Link href={productLink} className="relative block h-80 w-full shrink-0 overflow-hidden bg-zinc-900">
-        <Image
+        <img
           src={imageUrl}
           alt={name}
-          fill
-          unoptimized
-          sizes="(max-width: 768px) 50vw, 25vw"
-          className="object-cover object-center transition-transform duration-500 group-hover:scale-105"
-          onError={(e: any) => {
-            e.currentTarget.srcset = "";
-            e.currentTarget.src = SVG_PLACEHOLDER;
+          className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
+          onError={(e) => {
+            e.currentTarget.onerror = null; // يمنع حلقة التكرار اللانهائية
+            e.currentTarget.src = DEFAULT_PLACEHOLDER;
           }}
         />
 
@@ -49,7 +45,7 @@ const ProductCard: React.FC<ProductCardProps> = (props) => {
         )}
       </Link>
 
-      {/* تفاصيل العطر بتوحيد طول الكارت والمحاذاة */}
+      {/* تفاصيل العطر بنفس الأبعاد والارتفاع المتساوي */}
       <div className="p-4 flex flex-col flex-grow">
         {/* الأحجام مرتبة تصاعدياً */}
         <div className="flex flex-wrap gap-1.5 mb-3 min-h-[24px]">
