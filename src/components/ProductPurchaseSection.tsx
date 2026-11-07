@@ -4,17 +4,6 @@
 import React, { useState } from "react"
 import AddToCart from "@/components/AddToCart"
 import WhatsAppButton from "@/components/WhatsAppButton"
-import { ProductVariant } from "@/lib/types"
-
-interface ProductPurchaseSectionProps {
-  product: any
-  locale: string
-  currency: string
-  image: string | null
-  whatsappNumber?: string | null
-  waMsg: string
-  waLabel: string
-}
 
 export default function ProductPurchaseSection({
   product,
@@ -24,11 +13,11 @@ export default function ProductPurchaseSection({
   whatsappNumber,
   waMsg,
   waLabel,
-}: ProductPurchaseSectionProps) {
+}: any) {
   let rawVariants: any[] = []
-  if (Array.isArray(product.variants)) {
+  if (Array.isArray(product?.variants)) {
     rawVariants = product.variants
-  } else if (typeof product.variants === "string") {
+  } else if (typeof product?.variants === "string") {
     try {
       rawVariants = JSON.parse(product.variants)
     } catch (e) {
@@ -36,26 +25,26 @@ export default function ProductPurchaseSection({
     }
   }
 
-  const variants: ProductVariant[] =
+  const variants: any[] =
     rawVariants.length > 0
       ? rawVariants
       : [
           {
-            volume: product.volume || "50ml",
-            price: Number(product.price) || 0,
-            discount_price: product.discount_price ? Number(product.discount_price) : null,
-            stock_qty: product.stock_qty || 10,
+            volume: product?.volume || "50ml",
+            price: Number(product?.price) || 0,
+            discount_price: product?.discount_price ? Number(product.discount_price) : null,
+            stock_qty: product?.stock_qty || 10,
           },
         ]
 
   const [selectedIndex, setSelectedIndex] = useState(0)
   const selectedVariant = variants[selectedIndex] || variants[0]
 
-  const originalPrice = Number(selectedVariant.price || 0)
-  const discountPrice = selectedVariant.discount_price ? Number(selectedVariant.discount_price) : null
+  const originalPrice = Number(selectedVariant?.price || 0)
+  const discountPrice = selectedVariant?.discount_price ? Number(selectedVariant.discount_price) : null
   const currentPrice = discountPrice && discountPrice > 0 ? discountPrice : originalPrice
   const hasDiscount = discountPrice !== null && discountPrice > 0 && discountPrice < originalPrice
-  const currentStock = selectedVariant.stock_qty ?? product.stock_qty ?? 10
+  const currentStock = selectedVariant?.stock_qty ?? product?.stock_qty ?? 10
 
   return (
     <div className="mt-5 space-y-6">
@@ -69,7 +58,7 @@ export default function ProductPurchaseSection({
             </span>
           )}
         </p>
-        {currentStock > 0 && currentStock <= (product.low_stock_threshold || 5) && (
+        {currentStock > 0 && currentStock <= (product?.low_stock_threshold || 5) && (
           <p className="mt-2 text-sm text-gold/80 font-mono">
             {locale === "ar" ? `متبقي ${currentStock} قطع فقط!` : `Only ${currentStock} left in stock!`}
           </p>
@@ -83,7 +72,7 @@ export default function ProductPurchaseSection({
             {locale === "ar" ? "اختر السعة / Size:" : "Select Size / السعة:"}
           </label>
           <div className="flex flex-wrap gap-3">
-            {variants.map((v, idx) => {
+            {variants.map((v: any, idx: number) => {
               const isSelected = idx === selectedIndex
               const vPrice = v.discount_price && Number(v.discount_price) > 0 ? Number(v.discount_price) : Number(v.price)
 
@@ -108,7 +97,7 @@ export default function ProductPurchaseSection({
       )}
 
       {/* Description */}
-      {product.description_en && (
+      {product?.description_en && (
         <p className="leading-relaxed text-cream/75 pt-2">
           {locale === "ar" ? (product.description_ar || product.description_en) : product.description_en}
         </p>
@@ -117,13 +106,13 @@ export default function ProductPurchaseSection({
       {/* Actions */}
       <div className="space-y-3 pt-4">
         <AddToCart
-          product_id={product.id}
-          slug={product.slug}
-          title={locale === "ar" ? (product.title_ar || product.title_en) : product.title_en}
+          product_id={product?.id}
+          slug={product?.slug}
+          title={locale === "ar" ? (product?.title_ar || product?.title_en) : product?.title_en}
           image={image}
           price={currentPrice}
           stock={currentStock}
-          volume={selectedVariant.volume}
+          volume={selectedVariant?.volume}
         />
 
         <WhatsAppButton
