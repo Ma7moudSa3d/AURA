@@ -23,14 +23,14 @@ export default async function ProductPage({ params }: Props) {
     );
   }
 
-  // البحث أولاً عن طريق ID
+  // البحث عن العطر بالـ ID أولاً
   let { data: product } = await supabase
     .from("products")
     .select("*, product_images(*)")
     .eq("id", slugOrId)
     .maybeSingle();
 
-  // إذا لم يجده بالـ ID يبحث بالـ slug
+  // إذا لم يجد العطر بالـ ID يبحث بالـ slug
   if (!product) {
     const { data: productBySlug } = await supabase
       .from("products")
@@ -44,7 +44,7 @@ export default async function ProductPage({ params }: Props) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-[#0A0A0A] px-6 text-center text-white">
         <h1 className="font-serif text-3xl text-[#C5A059]">Fragrance Not Found</h1>
-        <p className="mt-3 text-sm text-zinc-500">Product ID / Slug: {slugOrId}</p>
+        <p className="mt-3 text-sm text-zinc-500">Product: {slugOrId}</p>
         <a
           href="/shop"
           className="mt-6 border border-[#C5A059] px-6 py-3 text-xs font-bold uppercase tracking-[0.22em] text-[#C5A059] transition-all hover:bg-[#C5A059] hover:text-black"
