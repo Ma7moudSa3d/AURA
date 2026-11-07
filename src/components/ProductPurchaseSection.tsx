@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import Image from "next/image";
 import { useCart } from "@/lib/cart";
-import { getProductImageUrl, SVG_PLACEHOLDER } from "@/lib/supabase-image";
+import { getCleanImageUrl, DEFAULT_PLACEHOLDER } from "@/lib/image-utils";
 
 export interface ProductPurchaseSectionProps {
   product: any;
@@ -19,9 +18,8 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
   const description = product.description_en || product.description_ar || product.description || "";
   const basePrice = Number(product.discount_price || product.price || 550);
 
-  const mainImageUrl = getProductImageUrl(product);
+  const mainImageUrl = getCleanImageUrl(product);
 
-  // خيارات الأحجام مرتبة تصاعدياً مع أسعار دقيقة
   const defaultVariants = [
     { id: "5ml", volume: "5ML", price: Math.round(basePrice * 0.2) || 80 },
     { id: "30ml", volume: "30ML", price: Math.round(basePrice * 0.65) || 350 },
@@ -58,18 +56,15 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-start">
-      {/* صورة العطر في صفحة الشراء */}
+      {/* صورة العطر الرئيسية */}
       <div className="relative w-full aspect-[3/4] max-h-[600px] bg-zinc-900 rounded-lg overflow-hidden border border-zinc-800">
-        <Image
+        <img
           src={mainImageUrl}
           alt={title}
-          fill
-          unoptimized
-          priority
-          className="object-cover object-center"
-          onError={(e: any) => {
-            e.currentTarget.srcset = "";
-            e.currentTarget.src = SVG_PLACEHOLDER;
+          className="h-full w-full object-cover object-center"
+          onError={(e) => {
+            e.currentTarget.onerror = null;
+            e.currentTarget.src = DEFAULT_PLACEHOLDER;
           }}
         />
         {product.is_featured && (
@@ -90,7 +85,7 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
           </p>
         </div>
 
-        {/* اختيار الحجم */}
+        {/* خيارات الأحجام */}
         <div>
           <label className="block text-xs uppercase tracking-widest text-zinc-400 mb-3">
             Select Size / السعة :
@@ -117,7 +112,7 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
           </div>
         </div>
 
-        {/* الوصف */}
+        {/* وصف العطر */}
         {description && (
           <div className="border-t border-zinc-800/80 pt-4">
             <p className="text-xs text-zinc-300 leading-relaxed font-light">
