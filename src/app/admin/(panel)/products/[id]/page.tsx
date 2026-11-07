@@ -1,39 +1,62 @@
-import { supabaseServer } from "@/lib/supabase/server"
-import { notFound } from "next/navigation"
-import ProductFormClient from "./ProductFormClient"
+import React from "react";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
+import ProductPurchaseSection from "@/components/ProductPurchaseSection";
 
-export const dynamic = "force-dynamic"
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://qjwisnczaffrouaadgzq.supabase.co";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
-export default async function ProductPage({ params }: { params: { id: string } }) {
-  const isNew = params.id === "new"
-  let product: any = null
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-  if (!isNew) {
-    const sb = supabaseServer()
-    const { data: p } = await sb
+type Props = {
+  params: Promise<{ id: string }> | { id: string };
+};
+
+export default async function ProductPage({ params }: Props) {
+  const resolvedParams = await params;
+  const productId = resolvedParams.id;
+
+  if (!productId) {
+    notFound();
+  }
+
+  // البحث عن العطر بالـ ID أو الـ Slug
+  let { data: product } = await supabase
+    .from("products")
+    .select("*, variants(*)")
+    .eq("id", productId)
+    .single();
+
+  if (!product) {
+    const { data: productBySlug } = await supabase
       .from("products")
-      .select("*, product_images(*), product_notes(*)")
-      .eq("id", params.id)
-      .single()
+      .select("*, variants(*)")
+      .eq("slug", productId)
+      .single();
+    product = productBySlug;
+  }
 
-    if (!p) return notFound()
-
-    product = {
-      ...p,
-      images: p.product_images ?? [],
-      notes: Array.isArray(p.product_notes) ? p.product_notes[0] : p.product_notes,
-    }
+  if (!product) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col items-center justify-center p-6 text-center">
+        <h1 className="text-4xl font-serif text-[#C5A059] mb-4">Fragrance Not Found</h1>
+        <p className="text-zinc-400 mb-8 max-w-md">
+          The fragrance you are looking for does not exist or has been removed.
+        </p>
+        <Link
+          href="/shop"
+          className="px-6 py-3 bg-[#C5A059] text-black font-bold uppercase tracking-widest text-xs rounded-sm hover:bg-[#D4AF37] transition-all"
+        >
+          Back to Collection
+        </Link>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center border-b border-white/10 pb-4">
-        <h1 className="text-2xl font-serif text-gold">
-          {isNew ? "Add New Product" : `Edit Product: ${product?.title_en}`}
-        </h1>
-      </div>
-
-      <ProductFormClient product={product} />
-    </div>
-  )
+    <main className="min-h-screen bg-[#0A0A0A] text-white pt-24 pb-16 px-4 md:px-8 max-w-7xl mx-auto">
+      <ProductPurchaseSection product={product} />
+    </main>
+  );
 }
