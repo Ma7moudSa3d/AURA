@@ -25,7 +25,6 @@ export default function ProductPurchaseSection({
   waMsg,
   waLabel,
 }: ProductPurchaseSectionProps) {
-  // استخراج مصفوفة السعات بأمان
   let rawVariants: any[] = []
   if (Array.isArray(product.variants)) {
     rawVariants = product.variants
@@ -37,16 +36,17 @@ export default function ProductPurchaseSection({
     }
   }
 
-  const variants: ProductVariant[] = rawVariants.length > 0
-    ? rawVariants
-    : [
-        {
-          volume: product.volume || "50ml",
-          price: Number(product.price) || 0,
-          discount_price: product.discount_price ? Number(product.discount_price) : null,
-          stock_qty: product.stock_qty || 10,
-        }
-      ]
+  const variants: ProductVariant[] =
+    rawVariants.length > 0
+      ? rawVariants
+      : [
+          {
+            volume: product.volume || "50ml",
+            price: Number(product.price) || 0,
+            discount_price: product.discount_price ? Number(product.discount_price) : null,
+            stock_qty: product.stock_qty || 10,
+          },
+        ]
 
   const [selectedIndex, setSelectedIndex] = useState(0)
   const selectedVariant = variants[selectedIndex] || variants[0]
@@ -59,7 +59,7 @@ export default function ProductPurchaseSection({
 
   return (
     <div className="mt-5 space-y-6">
-      {/* عرض السعر الديناميكي */}
+      {/* Dynamic Price */}
       <div>
         <p className="text-3xl font-serif">
           <span className="text-gold font-bold">{currentPrice} {currency}</span>
@@ -76,7 +76,7 @@ export default function ProductPurchaseSection({
         )}
       </div>
 
-      {/* أزرار اختيار السعة للمشتري */}
+      {/* Size Buttons */}
       {variants.length > 0 && (
         <div className="space-y-3 pt-2">
           <label className="block text-xs uppercase tracking-widest text-gold font-bold">
@@ -107,14 +107,14 @@ export default function ProductPurchaseSection({
         </div>
       )}
 
-      {/* الوصف */}
+      {/* Description */}
       {product.description_en && (
         <p className="leading-relaxed text-cream/75 pt-2">
           {locale === "ar" ? (product.description_ar || product.description_en) : product.description_en}
         </p>
       )}
 
-      {/* أزرار الإضافة للسلة والواتساب */}
+      {/* Actions */}
       <div className="space-y-3 pt-4">
         <AddToCart
           product_id={product.id}
