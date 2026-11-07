@@ -19,6 +19,9 @@ export interface CartItem {
   [key: string]: any
 }
 
+// تصدير CartLine كمرادف لـ CartItem لتوافق جميع المكونات
+export type CartLine = CartItem;
+
 interface CartState {
   items: CartItem[]
   addItem: (item: any) => void
