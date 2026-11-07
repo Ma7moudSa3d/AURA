@@ -1,193 +1,206 @@
 "use client";
 
-import { useState } from "react";
-import { useLocale } from "next-intl";
-import { useCartStore } from "@/lib/cart-store";
+import React, { useState } from "react";
+import Image from "next/image";
+import { useCart } from "@/lib/cart";
 
-function IconShoppingBag(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-    </svg>
-  );
+export interface ProductPurchaseSectionProps {
+  product: any;
+  locale?: string;
 }
 
-function IconWhatsApp(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg fill="currentColor" viewBox="0 0 24 24" {...props}>
-      <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.396-.883-.726-1.48-1.623-1.653-1.92-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" />
-    </svg>
-  );
-}
+const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product }) => {
+  const { addItem } = useCart();
 
-export function ProductPurchaseSection({
-  product,
-  locale: propLocale,
-  currency = "EGP",
-  image,
-  whatsappNumber,
-  waMsg,
-  waLabel,
-}: any) {
-  const currentLocale = useLocale();
-  const isAr = (propLocale || currentLocale) === "ar";
-  const addItem = useCartStore((s) => s.addItem);
-  const setOpen = useCartStore((s) => s.setOpen);
+  if (!product) return null;
 
-  // Parse variants if string or array
-  let variants: any[] = [];
-  if (product?.variants) {
-    if (typeof product.variants === "string") {
-      try {
-        variants = JSON.parse(product.variants);
-      } catch (e) {
-        variants = [];
-      }
-    } else if (Array.isArray(product.variants)) {
-      variants = product.variants;
+  const title = product.name || product.title_en || product.title_ar || "AURA Fragrance";
+  const description = product.description || product.description_en || product.description_ar || "";
+
+  // جلب رابط الصورة
+  const resolveImageUrl = (prod: any) => {
+    let raw = prod.image_url || prod.image;
+    if (!raw && Array.isArray(prod.product_images) && prod.product_images.length > 0) {
+      const first = prod.product_images[0];
+      raw = typeof first === "string" ? first : (first?.path || first?.image_url || first?.url);
     }
-  }
+    if (!raw && prod.id) {
+      raw = prod.id;
+    }
+    if (!raw) return "https://placehold.co/600x800/0a0a0a/C5A059?text=AURA+Fragrance";
 
-  // Extract numeric volume value for ascending sorting (5ML < 10ML < 30ML < 50ML < 100ML)
-  const parseVolumeNum = (volStr: string): number => {
-    if (!volStr) return 999;
-    const match = volStr.match(/\d+/);
-    return match ? parseInt(match[0], 10) : 999;
+    const path = String(raw).trim();
+    if (path.startsWith("http://") || path.startsWith("https://")) return path;
+
+    const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+    if (cleanPath.startsWith("products/")) {
+      return `https://qjwisnczaffrouaadgzq.supabase.co/storage/v1/object/public/${cleanPath}`;
+    }
+    return `https://qjwisnczaffrouaadgzq.supabase.co/storage/v1/object/public/products/${cleanPath}`;
   };
 
-  // Sort variants ascending by volume size
-  const sortedVariants = [...variants].sort((a, b) => {
-    return parseVolumeNum(a.volume) - parseVolumeNum(b.volume);
-  });
+  const mainImageUrl = resolveImageUrl(product);
 
-  // Fallback default variants if none exist
-  const finalVariants = sortedVariants.length > 0 ? sortedVariants : [
-    { volume: "5ML", price: Math.round((product?.price || 450) * 0.2), stock_qty: 50 },
-    { volume: "30ML", price: Math.round((product?.price || 450) * 0.6), stock_qty: 50 },
-    { volume: "50ML", price: product?.price || 450, discount_price: product?.discount_price, stock_qty: 50 },
-    { volume: "100ML", price: Math.round((product?.price || 450) * 1.6), stock_qty: 50 },
-  ].sort((a, b) => parseVolumeNum(a.volume) - parseVolumeNum(b.volume));
+  // الأحجام والأسعار مرتبة تصاعدياً
+  const defaultVariants = [
+    { id: "5ml", volume: "5ML", price: Math.round((Number(product.price) || 550) * 0.2) || 80 },
+    { id: "30ml", volume: "30ML", price: Math.round((Number(product.price) || 550) * 0.65) || 350 },
+    { id: "50ml", volume: "50ML", price: Number(product.price) || 550 },
+    { id: "100ml", volume: "100ML", price: Math.round((Number(product.price) || 550) * 1.55) || 850 },
+  ];
 
-  // Default active variant: select 50ML or the first sorted variant
-  const initialVariant = finalVariants.find((v) => (v.volume || "").toUpperCase().includes("50ML")) || finalVariants[0];
-  const [selectedVariant, setSelectedVariant] = useState<any>(initialVariant);
+  let variants = defaultVariants;
+  if (Array.isArray(product.variants) && product.variants.length > 0) {
+    variants = [...product.variants].sort((a, b) => (parseInt(a.volume) || 0) - (parseInt(b.volume) || 0));
+  }
+
+  const [selectedVariant, setSelectedVariant] = useState(variants[2] || variants[0]);
+  const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
-
-  const activePrice = Number(selectedVariant?.price ?? product?.price ?? 0);
-  const activeDiscount = selectedVariant?.discount_price || selectedVariant?.compare_at_price || product?.discount_price || null;
-  const activeVolume = selectedVariant?.volume || "100ML";
 
   const handleAddToCart = () => {
     addItem({
-      id: `${product.id}-${activeVolume}`,
+      id: `${product.id}-${selectedVariant.volume}`,
       product_id: product.id,
-      volume: activeVolume,
-      price: activePrice,
-      quantity: 1,
-      product: {
-        id: product.id,
-        title_en: product.title_en,
-        title_ar: product.title_ar,
-        image_url: image || product.image_url || product.image,
-        price: activePrice,
-      },
+      variant_id: selectedVariant.id,
+      name: title,
+      price: Number(selectedVariant.price),
+      volume: selectedVariant.volume,
+      image_url: mainImageUrl,
+      quantity: quantity,
     });
-
     setAdded(true);
-    setOpen(true);
     setTimeout(() => setAdded(false), 2000);
   };
 
-  const rawPhone = whatsappNumber || "01016267377";
-  const cleanPhone = rawPhone.replace(/\D/g, "");
-  const formattedPhone = cleanPhone.startsWith("20") ? cleanPhone : `20${cleanPhone.replace(/^0+/, "")}`;
-
-  const defaultWaMsg = `Hello AURA Fragrances, I would like to inquire about ${product?.title_en || "Perfume"} (${activeVolume} - ${activePrice} ${currency}).`;
-  const whatsappMessage = encodeURIComponent(waMsg || defaultWaMsg);
+  const whatsappMessage = encodeURIComponent(
+    `Hello AURA Fragrances, I would like to inquire about ordering:\n*Product:* ${title}\n*Size:* ${selectedVariant.volume}\n*Price:* ${selectedVariant.price} EGP`
+  );
 
   return (
-    <div className="space-y-6">
-      {/* Price Display */}
-      <div className="flex items-baseline gap-3">
-        <span className="text-3xl font-bold font-mono text-[#D4AF37]">
-          {activePrice} {currency}
-        </span>
-        {activeDiscount && Number(activeDiscount) > activePrice && (
-          <span className="text-lg text-neutral-500 line-through font-mono">
-            {activeDiscount} {currency}
-          </span>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-start">
+      {/* العمود الأيسر: صورة العطر */}
+      <div className="relative w-full aspect-[3/4] max-h-[600px] bg-zinc-900/80 rounded-lg overflow-hidden border border-zinc-800 group">
+        <Image
+          src={mainImageUrl}
+          alt={title}
+          fill
+          unoptimized
+          priority
+          className="object-cover object-center transition-transform duration-700 group-hover:scale-105"
+          onError={(e: any) => {
+            const currentSrc = e.target.src;
+            if (!currentSrc.includes(".png") && !currentSrc.includes(".jpg") && !currentSrc.includes("placehold.co")) {
+              e.target.src = `${mainImageUrl}.png`;
+            } else if (currentSrc.includes(".png")) {
+              e.target.src = `${mainImageUrl}.jpg`;
+            } else {
+              e.target.srcset = "";
+              e.target.src = "https://placehold.co/600x800/0a0a0a/C5A059?text=AURA+Fragrance";
+            }
+          }}
+        />
+        {product.is_featured && (
+          <div className="absolute top-4 left-4 bg-[#C5A059] text-black text-xs font-bold px-3 py-1 rounded-sm uppercase tracking-widest shadow-xl">
+            Featured
+          </div>
         )}
       </div>
 
-      {/* Size Selector with Sorted Volumes */}
-      <div className="space-y-2">
-        <label className="block text-xs uppercase tracking-widest text-[#C5A059] font-semibold">
-          {isAr ? "اختر الحجم / SELECT SIZE:" : "SELECT SIZE / السعة:"}
-        </label>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-          {finalVariants.map((v: any, idx: number) => {
-            const vol = (v.volume || "").toUpperCase();
-            const price = v.price;
-            const isSelected = (selectedVariant?.volume || "").toUpperCase() === vol;
-
-            return (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => setSelectedVariant(v)}
-                className={`py-3 px-3 rounded-xl border text-center transition-all duration-200 flex flex-col items-center justify-center gap-0.5 ${
-                  isSelected
-                    ? "bg-[#C5A059]/20 border-[#C5A059] text-white shadow-md shadow-[#C5A059]/10"
-                    : "bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700 hover:text-neutral-200"
-                }`}
-              >
-                <span className="font-mono font-bold text-xs tracking-wider">
-                  {vol}
-                </span>
-                <span className="text-[11px] font-mono text-neutral-400">
-                  {price} {currency}
-                </span>
-              </button>
-            );
-          })}
+      {/* العمود الأيمن: تفاصيل العطر والطلب */}
+      <div className="flex flex-col space-y-6">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-serif text-white uppercase tracking-wider mb-2">
+            {title}
+          </h1>
+          <p className="text-2xl font-bold text-[#D4AF37]">
+            {selectedVariant.price} EGP
+          </p>
         </div>
-      </div>
 
-      {/* Description */}
-      {product?.description_en && (
-        <p className="text-sm text-neutral-300 leading-relaxed font-light pt-2">
-          {isAr ? product.description_ar || product.description_en : product.description_en}
-        </p>
-      )}
+        {/* اختيار الحجم */}
+        <div>
+          <label className="block text-xs uppercase tracking-widest text-zinc-400 mb-3">
+            Select Size / السعة :
+          </label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {variants.map((v) => {
+              const isSelected = selectedVariant.volume === v.volume;
+              return (
+                <button
+                  key={v.id || v.volume}
+                  type="button"
+                  onClick={() => setSelectedVariant(v)}
+                  className={`py-3 px-2 rounded-sm border text-center transition-all ${
+                    isSelected
+                      ? "border-[#C5A059] bg-[#C5A059]/10 text-white shadow-lg"
+                      : "border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700 hover:text-white"
+                  }`}
+                >
+                  <div className="text-xs font-bold uppercase">{v.volume}</div>
+                  <div className="text-[10px] text-[#D4AF37] mt-1">{v.price} EGP</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-      {/* Actions: Add to Cart & WhatsApp */}
-      <div className="space-y-3 pt-2">
-        <button
-          type="button"
-          onClick={handleAddToCart}
-          className="w-full py-4 rounded-xl bg-gradient-to-r from-[#C5A059] to-[#D4AF37] hover:from-[#b39049] hover:to-[#c29e2d] text-neutral-950 font-bold uppercase tracking-widest shadow-lg transition flex items-center justify-center gap-2 text-sm"
-        >
-          <IconShoppingBag className="w-5 h-5" />
-          <span>
-            {added
-              ? isAr ? "تمت الإضافة للسلة ✓" : "ADDED TO BAG ✓"
-              : isAr ? `إضافة للسلة (${activeVolume})` : `ADD TO BAG (${activeVolume})`}
-          </span>
-        </button>
+        {/* الوصف */}
+        {description && (
+          <div className="border-t border-zinc-800/80 pt-4">
+            <p className="text-xs text-zinc-300 leading-relaxed font-light">
+              {description}
+            </p>
+          </div>
+        )}
 
-        <a
-          href={`https://wa.me/${formattedPhone}?text=${whatsappMessage}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="w-full py-3.5 rounded-xl border border-neutral-800 hover:border-[#C5A059]/50 bg-neutral-950 text-neutral-300 hover:text-white font-medium text-xs uppercase tracking-widest transition flex items-center justify-center gap-2"
-        >
-          <IconWhatsApp className="w-4 h-4 text-emerald-500" />
-          <span>{waLabel || (isAr ? "تواصل عبر الواتساب" : "CHAT ON WHATSAPP")}</span>
-        </a>
+        {/* الكمية والأزرار */}
+        <div className="space-y-3 pt-2">
+          <div className="flex items-center space-x-3 rtl:space-x-reverse mb-4">
+            <span className="text-xs uppercase tracking-widest text-zinc-400">Quantity:</span>
+            <div className="flex items-center border border-zinc-800 bg-zinc-900 rounded-sm">
+              <button
+                type="button"
+                onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                className="px-3 py-1 text-zinc-400 hover:text-white text-sm font-bold"
+              >
+                -
+              </button>
+              <span className="px-4 py-1 text-xs text-white font-medium">{quantity}</span>
+              <button
+                type="button"
+                onClick={() => setQuantity(quantity + 1)}
+                className="px-3 py-1 text-zinc-400 hover:text-white text-sm font-bold"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleAddToCart}
+            className={`w-full py-3.5 px-6 font-bold uppercase tracking-widest text-xs transition-all duration-300 rounded-sm shadow-md ${
+              added
+                ? "bg-green-600 text-white"
+                : "bg-[#C5A059] text-black hover:bg-[#D4AF37]"
+            }`}
+          >
+            {added ? "ADDED TO BAG ✓" : `ADD TO BAG (${selectedVariant.volume})`}
+          </button>
+
+          <a
+            href={`https://wa.me/201111111111?text=${whatsappMessage}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full py-3 px-6 bg-transparent border border-zinc-800 text-zinc-300 hover:border-[#C5A059] hover:text-[#C5A059] font-medium text-xs uppercase tracking-widest transition-all text-center flex items-center justify-center gap-2 rounded-sm"
+          >
+            💬 Chat on WhatsApp
+          </a>
+        </div>
       </div>
     </div>
   );
-}
+};
 
 export default ProductPurchaseSection;
