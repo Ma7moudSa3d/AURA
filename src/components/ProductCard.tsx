@@ -1,92 +1,142 @@
-// src/components/ProductCard.tsx
-import Link from "next/link"
-import { getLocale, getTranslations } from "next-intl/server"
-import { imageUrl, money, title } from "@/lib/format"
+"use client";
 
-export default async function ProductCard({ product, p: pProp }: { product?: any; p?: any }) {
-  const locale = await getLocale()
-  const c = await getTranslations("common")
+import Link from "next/link";
+import { useLocale } from "next-intl";
 
-  const p = product || pProp
-  if (!p) return null
+export interface ProductCardProps {
+  product?: any;
+  p?: any;
+}
 
-  const rawImages = p?.product_images ?? p?.images ?? []
-  const mainImage = rawImages.length > 0 ? imageUrl(rawImages[0].path) : "/placeholder.jpg"
+export function ProductCard({ product, p: pProp }: ProductCardProps) {
+  const prod = product || pProp;
+  const locale = useLocale();
+  const isAr = locale === "ar";
 
-  // قراءة مصفوفة السعات إن وجدت
-  let variants: any[] = []
-  if (Array.isArray(p?.variants)) {
-    variants = p.variants
-  } else if (typeof p?.variants === "string") {
-    try {
-      variants = JSON.parse(p.variants)
-    } catch (e) {
-      variants = []
+  if (!prod) return null;
+
+  const title = isAr ? prod.title_ar || prod.title_en : prod.title_en || prod.title_ar;
+  const concentration = prod.concentration || "EDP";
+
+  // Parse variants if string or array
+  let variants: any[] = [];
+  if (prod.variants) {
+    if (typeof prod.variants === "string") {
+      try {
+        variants = JSON.parse(prod.variants);
+      } catch (e) {
+        variants = [];
+      }
+    } else if (Array.isArray(prod.variants)) {
+      variants = prod.variants;
     }
   }
 
-  // عرض السعات المتوفرة
-  let volumeText = p?.volume || "50ml"
-  if (variants.length > 1) {
-    const vols = variants.map((v: any) => v.volume).filter(Boolean)
-    if (vols.length > 0) {
-      volumeText = vols.join(" · ")
+  // Helper function to extract numeric volume value for sorting
+  const parseVolumeNum = (volStr: string): number => {
+    if (!volStr) return 999;
+    const match = volStr.match(/\d+/);
+    return match ? parseInt(match[0], 10) : 999;
+  };
+
+  // Sort variants ascending by volume number (5ML < 10ML < 30ML < 50ML < 100ML)
+  const sortedVariants = [...variants].sort((a, b) => {
+    return parseVolumeNum(a.volume) - parseVolumeNum(b.volume);
+  });
+
+  // Extract volume labels sorted ascendingly
+  let volumeBadges: string[] = [];
+  if (sortedVariants.length > 0) {
+    volumeBadges = sortedVariants.map((v) => (v.volume || "").toUpperCase());
+  } else if (prod.volume) {
+    volumeBadges = [String(prod.volume).toUpperCase()];
+  } else {
+    volumeBadges = ["5ML", "30ML", "50ML", "100ML"];
+  }
+
+  // Calculate minimum starting price across variants or base product
+  let minPrice = prod.price || 0;
+  let originalPrice = prod.discount_price || prod.compare_at_price || null;
+
+  if (sortedVariants.length > 0) {
+    let lowestVal = Number(sortedVariants[0].price ?? 999999);
+    let lowestVariant = sortedVariants[0];
+
+    for (const v of sortedVariants) {
+      const vPrice = Number(v.price ?? 999999);
+      if (vPrice < lowestVal) {
+        lowestVal = vPrice;
+        lowestVariant = v;
+      }
+    }
+
+    if (lowestVal < 999999) {
+      minPrice = lowestVal;
+    }
+    if (lowestVariant.discount_price || lowestVariant.compare_at_price) {
+      originalPrice = Number(lowestVariant.discount_price || lowestVariant.compare_at_price);
+    } else {
+      originalPrice = null;
     }
   }
 
-  // حساب أقل سعر متوفر
-  let minPrice = Number(p?.price || 0)
-  let minDiscountPrice: number | null = p?.discount_price ? Number(p.discount_price) : null
-
-  if (variants.length > 0) {
-    const prices = variants.map((v: any) => {
-      const dp = v.discount_price ? Number(v.discount_price) : null
-      const pr = Number(v.price || 0)
-      return dp && dp > 0 ? dp : pr
-    })
-    minPrice = Math.min(...prices)
-  }
-
-  const effectiveP = minDiscountPrice && minDiscountPrice > 0 ? minDiscountPrice : minPrice
-  const hasDiscount = p?.discount_price && Number(p.discount_price) < Number(p.price)
+  const slug = prod.slug || prod.id;
 
   return (
-    <div className="group relative flex flex-col justify-between border border-white/5 bg-surface/50 p-4 transition-all hover:border-gold/30 rounded-sm">
-      <div>
-        <Link href={`/product/${p.slug}`} className="block overflow-hidden">
-          <div className="aspect-square w-full overflow-hidden bg-ink">
+    <div className="group relative bg-neutral-900/60 border border-neutral-800/80 rounded-2xl overflow-hidden hover:border-amber-500/40 transition-all duration-300 flex flex-col h-full shadow-lg">
+      <Link href={`/product/${slug}`} className="flex flex-col h-full">
+        {/* Fixed Aspect Ratio Image Container */}
+        <div className="relative aspect-square w-full bg-neutral-950 overflow-hidden shrink-0">
+          {prod.image_url ? (
             <img
-              src={mainImage}
-              alt={title(p, locale)}
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              src={prod.image_url}
+              alt={title}
+              className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
             />
-          </div>
-        </Link>
-        <div className="mt-4">
-          <p className="text-[10px] uppercase tracking-widest text-gold/80 font-bold">
-            {p?.concentration || "EDP"} · {volumeText}
-          </p>
-          <Link href={`/product/${p.slug}`}>
-            <h3 className="h-display mt-1 text-lg font-serif text-cream hover:text-gold transition">
-              {title(p, locale)}
-            </h3>
-          </Link>
-        </div>
-      </div>
-
-      <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-3">
-        <div>
-          <span className="text-sm font-bold text-gold">
-            {variants.length > 1 ? (locale === "ar" ? "من " : "From ") : ""}
-            {money(effectiveP, locale)} {c("currency")}
-          </span>
-          {hasDiscount && (
-            <span className="ms-2 text-xs text-cream/40 line-through">
-              {money(Number(p.price), locale)}
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-neutral-600 font-serif text-2xl">
+              AURA
+            </div>
+          )}
+          {prod.is_featured && (
+            <span className="absolute top-3 left-3 bg-amber-500/90 text-neutral-950 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
+              {isAr ? "مميز" : "Featured"}
             </span>
           )}
         </div>
-      </div>
+
+        {/* Card Body - Equalized Heights with flex-1 */}
+        <div className="p-4 flex flex-col flex-1 justify-between gap-3">
+          <div>
+            {/* Ascending Volumes */}
+            <div className="text-[10px] font-mono tracking-widest text-amber-400/90 uppercase mb-1.5 truncate">
+              {concentration} • {volumeBadges.join(" · ")}
+            </div>
+
+            {/* Title with Fixed 2-Line Height Clamp */}
+            <h3 className="font-serif text-sm font-semibold text-neutral-100 group-hover:text-amber-300 transition-colors line-clamp-2 min-h-[2.5rem] leading-tight">
+              {title}
+            </h3>
+          </div>
+
+          {/* Locked Bottom Pricing Row */}
+          <div className="flex items-baseline gap-2 pt-2 border-t border-neutral-800/50 mt-auto">
+            <span className="text-xs text-neutral-400 font-light">
+              {isAr ? "من" : "From"}
+            </span>
+            <span className="text-sm font-bold text-amber-400 font-mono">
+              {minPrice} EGP
+            </span>
+            {originalPrice && originalPrice > minPrice && (
+              <span className="text-xs text-neutral-500 line-through font-mono">
+                {originalPrice} EGP
+              </span>
+            )}
+          </div>
+        </div>
+      </Link>
     </div>
-  )
+  );
 }
+
+export default ProductCard;
