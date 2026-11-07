@@ -8,6 +8,88 @@ export interface ProductCardProps {
   p?: any;
 }
 
+// Universal image extractor that resolves any DB structure
+function getImageUrl(prod: any): string | null {
+  if (!prod) return null;
+
+  const candidates = [
+    prod.image_url,
+    prod.image,
+    prod.primary_image,
+    prod.cover_image,
+    prod.images,
+    prod.product_images,
+    prod.img,
+  ];
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+
+  function parseCandidate(item: any): string | null {
+    if (!item) return null;
+
+    if (typeof item === "string") {
+      const trimmed = item.trim();
+      if (!trimmed) return null;
+
+      // Check if stringified JSON
+      if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          return parseCandidate(parsed);
+        } catch (e) {
+          // Ignore JSON parse error, treat as string
+        }
+      }
+
+      if (
+        trimmed.startsWith("http://") ||
+        trimmed.startsWith("https://") ||
+        trimmed.startsWith("data:") ||
+        trimmed.startsWith("blob:") ||
+        trimmed.startsWith("/")
+      ) {
+        return trimmed;
+      }
+
+      if (supabaseUrl) {
+        return `${supabaseUrl}/storage/v1/object/public/products/${trimmed}`;
+      }
+
+      return `/${trimmed}`;
+    }
+
+    if (Array.isArray(item)) {
+      for (const el of item) {
+        const res = parseCandidate(el);
+        if (res) return res;
+      }
+      return null;
+    }
+
+    if (typeof item === "object") {
+      const objUrl =
+        item.image_url ||
+        item.url ||
+        item.publicUrl ||
+        item.src ||
+        item.path ||
+        item.link;
+      if (objUrl) {
+        return parseCandidate(objUrl);
+      }
+    }
+
+    return null;
+  }
+
+  for (const candidate of candidates) {
+    const res = parseCandidate(candidate);
+    if (res) return res;
+  }
+
+  return null;
+}
+
 export function ProductCard({ product, p: pProp }: ProductCardProps) {
   const prod = product || pProp;
   const locale = useLocale();
@@ -17,23 +99,7 @@ export function ProductCard({ product, p: pProp }: ProductCardProps) {
 
   const title = isAr ? prod.title_ar || prod.title_en : prod.title_en || prod.title_ar;
   const concentration = prod.concentration || "EDP";
-
-  // Comprehensive image extractor supporting all DB formats
-  const imageUrl = ((): string | null => {
-    if (typeof prod.image_url === "string" && prod.image_url.trim()) return prod.image_url;
-    if (typeof prod.image === "string" && prod.image.trim()) return prod.image;
-    if (Array.isArray(prod.images) && prod.images.length > 0) {
-      const first = prod.images[0];
-      if (typeof first === "string" && first.trim()) return first;
-      if (first && typeof first.image_url === "string" && first.image_url.trim()) return first.image_url;
-    }
-    if (Array.isArray(prod.product_images) && prod.product_images.length > 0) {
-      const first = prod.product_images[0];
-      if (typeof first === "string" && first.trim()) return first;
-      if (first && typeof first.image_url === "string" && first.image_url.trim()) return first.image_url;
-    }
-    return null;
-  })();
+  const imageUrl = getImageUrl(prod);
 
   // Parse variants if string or array
   let variants: any[] = [];
@@ -49,7 +115,7 @@ export function ProductCard({ product, p: pProp }: ProductCardProps) {
     }
   }
 
-  // Helper function to extract numeric volume value for ascending sorting
+  // Extract numeric volume for ascending sorting
   const parseVolumeNum = (volStr: string): number => {
     if (!volStr) return 999;
     const match = volStr.match(/\d+/);
@@ -100,7 +166,7 @@ export function ProductCard({ product, p: pProp }: ProductCardProps) {
   const slug = prod.slug || prod.id;
 
   return (
-    <div className="group relative bg-neutral-900/60 border border-neutral-800/80 rounded-2xl overflow-hidden hover:border-[#C5A059]/50 transition-all duration-300 flex flex-col h-full shadow-lg">
+    <div className="group relative bg-neutral-900/60 border border-neutral-800/80 rounded-2xl overflow-hidden hover:border-[#C5A059]/60 transition-all duration-300 flex flex-col h-full shadow-lg">
       <Link href={`/product/${slug}`} className="flex flex-col h-full">
         {/* Fixed Aspect Ratio Image Container */}
         <div className="relative aspect-square w-full bg-neutral-950 overflow-hidden shrink-0">
@@ -126,7 +192,7 @@ export function ProductCard({ product, p: pProp }: ProductCardProps) {
         {/* Card Body - Equalized Heights */}
         <div className="p-4 flex flex-col flex-1 justify-between gap-3">
           <div>
-            {/* Ascending Volumes with Exact Gold Theme Color */}
+            {/* Ascending Volumes with Matching Gold Theme Color */}
             <div className="text-[10px] font-mono tracking-widest text-[#C5A059] uppercase mb-1.5 truncate">
               {concentration} • {volumeBadges.join(" · ")}
             </div>
