@@ -4,6 +4,7 @@ import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
+import { getProductImageUrl, SVG_PLACEHOLDER } from "@/lib/supabase-image";
 
 export interface ProductCardProps {
   product?: any;
@@ -17,39 +18,11 @@ const ProductCard: React.FC<ProductCardProps> = (props) => {
 
   if (!item) return null;
 
-  // اسم العطر والحقول الأساسية
   const name = item.title_en || item.title_ar || item.name || "AURA Fragrance";
   const basePrice = Number(item.discount_price || item.price || 0);
   const productLink = `/product/${item.slug || item.id}`;
 
-  // معالجة رابط الصورة بشكل آمن ومطلق 100%
-  const resolveImageUrl = (prod: any): string => {
-    const FALLBACK = "https://placehold.co/600x800/0a0a0a/C5A059?text=AURA+Fragrance";
-    
-    let path = "";
-    if (Array.isArray(prod.product_images) && prod.product_images.length > 0) {
-      const firstImg = prod.product_images[0];
-      path = typeof firstImg === "string" ? firstImg : (firstImg?.path || firstImg?.image_url || firstImg?.url || "");
-    }
-
-    if (!path) {
-      path = prod.image_url || prod.image || prod.id || "";
-    }
-
-    if (!path || typeof path !== "string" || !path.trim()) return FALLBACK;
-
-    const clean = path.trim();
-    if (clean.startsWith("http://") || clean.startsWith("https://")) {
-      return clean;
-    }
-
-    const sanitizedPath = clean.replace(/^\/+/, "").replace(/^products\//, "");
-    if (!sanitizedPath) return FALLBACK;
-
-    return `https://qjwisnczaffrouaadgzq.supabase.co/storage/v1/object/public/products/${sanitizedPath}`;
-  };
-
-  const imageUrl = resolveImageUrl(item);
+  const imageUrl = getProductImageUrl(item);
   const defaultVolumes = ["5ML", "30ML", "50ML", "100ML"];
 
   return (
@@ -64,8 +37,8 @@ const ProductCard: React.FC<ProductCardProps> = (props) => {
           sizes="(max-width: 768px) 50vw, 25vw"
           className="object-cover object-center transition-transform duration-500 group-hover:scale-105"
           onError={(e: any) => {
-            e.target.srcset = "";
-            e.target.src = "https://placehold.co/600x800/0a0a0a/C5A059?text=AURA+Fragrance";
+            e.currentTarget.srcset = "";
+            e.currentTarget.src = SVG_PLACEHOLDER;
           }}
         />
 
@@ -76,7 +49,7 @@ const ProductCard: React.FC<ProductCardProps> = (props) => {
         )}
       </Link>
 
-      {/* تفاصيل العطر بنفس الأطوال والمحاذاة */}
+      {/* تفاصيل العطر بتوحيد طول الكارت والمحاذاة */}
       <div className="p-4 flex flex-col flex-grow">
         {/* الأحجام مرتبة تصاعدياً */}
         <div className="flex flex-wrap gap-1.5 mb-3 min-h-[24px]">
@@ -105,7 +78,7 @@ const ProductCard: React.FC<ProductCardProps> = (props) => {
           {basePrice} EGP
         </p>
 
-        {/* زر الإضافة */}
+        {/* زر الإضافة للسلة */}
         <button
           type="button"
           onClick={() => {
