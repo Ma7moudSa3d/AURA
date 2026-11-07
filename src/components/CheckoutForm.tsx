@@ -6,7 +6,79 @@ import { useTranslations, useLocale } from "next-intl";
 import { useCartStore, CartItem } from "@/lib/cart-store";
 import { createOrder } from "@/app/actions/order";
 import { applyCouponAction } from "@/app/actions/coupon";
-import { Check, ShieldCheck, Truck, Lock, AlertCircle, Upload, Banknote, CreditCard, PieChart } from "lucide-react";
+
+function IconTruck(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.25 2.25 0 0 0-1.802-.87H15M3.375 14.25a2.25 2.25 0 0 0 2.25 2.25h1.5m-3.75-2.25V5.25A2.25 2.25 0 0 1 5.625 3h8.25a2.25 2.25 0 0 1 2.25 2.25v1.875" />
+    </svg>
+  );
+}
+
+function IconCreditCard(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5z" />
+    </svg>
+  );
+}
+
+function IconBanknote(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v.375c0 .621.504 1.125 1.125 1.125H20.25M2.25 6v9m18-9v9m0-9a2.25 2.25 0 00-2.25-2.25H4.5A2.25 2.25 0 002.25 6m19.5 0v9a2.25 2.25 0 01-2.25 2.25H4.5A2.25 2.25 0 012.25 15" />
+    </svg>
+  );
+}
+
+function IconPieChart(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6a7.5 7.5 0 1 0 7.5 7.5h-7.5V6z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0 0 13.5 3v7.5z" />
+    </svg>
+  );
+}
+
+function IconUpload(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+    </svg>
+  );
+}
+
+function IconLock(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25z" />
+    </svg>
+  );
+}
+
+function IconAlertCircle(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0zm-9 3.75h.008v.008H12v-.008z" />
+    </svg>
+  );
+}
+
+function IconCheck(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+    </svg>
+  );
+}
+
+function IconShieldCheck(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+    </svg>
+  );
+}
 
 export interface CheckoutFormProps {
   defaults?: { name?: string; phone?: string };
@@ -171,7 +243,7 @@ export function CheckoutForm({
           <div className="p-[1px] rounded-2xl bg-gradient-to-b from-amber-500/20 via-white/5 to-transparent">
             <div className="bg-neutral-900/90 rounded-[15px] p-6 space-y-4 backdrop-blur-md">
               <h2 className="text-xl font-medium tracking-wide border-b border-white/10 pb-3 text-amber-100 flex items-center gap-2">
-                <Truck className="w-5 h-5 text-amber-400" />
+                <IconTruck className="w-5 h-5 text-amber-400" />
                 {isAr ? "بيانات الشحن والعنوان" : "Shipping Details"}
               </h2>
 
@@ -239,7 +311,7 @@ export function CheckoutForm({
           <div className="p-[1px] rounded-2xl bg-gradient-to-b from-amber-500/20 via-white/5 to-transparent">
             <div className="bg-neutral-900/90 rounded-[15px] p-6 space-y-4 backdrop-blur-md">
               <h2 className="text-xl font-medium tracking-wide border-b border-white/10 pb-3 text-amber-100 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-amber-400" />
+                <IconCreditCard className="w-5 h-5 text-amber-400" />
                 {isAr ? "طريقة الدفع" : "Payment Method"}
               </h2>
 
@@ -299,7 +371,7 @@ export function CheckoutForm({
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <span className="font-semibold text-sm flex items-center gap-1.5">
-                          <PieChart className="w-4 h-4 text-amber-400" />
+                          <IconPieChart className="w-4 h-4 text-amber-400" />
                           {isAr ? "عربون 25% والباقي عند الاستلام" : "25% Deposit + COD Balance"}
                         </span>
                         <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded uppercase font-mono">
@@ -335,7 +407,7 @@ export function CheckoutForm({
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <span className="font-semibold text-sm flex items-center gap-1.5">
-                          <Banknote className="w-4 h-4 text-amber-400" />
+                          <IconBanknote className="w-4 h-4 text-amber-400" />
                           {isAr ? "الدفع عند الاستلام (كاش)" : "Cash on Delivery (COD)"}
                         </span>
                       </div>
@@ -377,7 +449,7 @@ export function CheckoutForm({
                     </label>
                     <div className="flex items-center gap-3">
                       <label className="flex items-center gap-2 px-4 py-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 rounded-lg cursor-pointer text-xs text-neutral-200 transition">
-                        <Upload className="w-4 h-4 text-amber-400" />
+                        <IconUpload className="w-4 h-4 text-amber-400" />
                         <span>{proofFile ? proofFile.name : isAr ? "اختر صورة الإيصال..." : "Choose Image File..."}</span>
                         <input
                           type="file"
@@ -405,7 +477,7 @@ export function CheckoutForm({
           {/* Error Banner */}
           {errorMsg && (
             <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-sm flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 shrink-0 text-red-400" />
+              <IconAlertCircle className="w-5 h-5 shrink-0 text-red-400" />
               <span>{errorMsg}</span>
             </div>
           )}
@@ -416,7 +488,7 @@ export function CheckoutForm({
             disabled={isPending || items.length === 0}
             className="w-full py-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-neutral-950 font-bold tracking-wide uppercase shadow-lg shadow-amber-500/10 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2 text-base"
           >
-            <Lock className="w-5 h-5" />
+            <IconLock className="w-5 h-5" />
             {isPending
               ? isAr
                 ? "جاري تأكيد الطلب..."
@@ -498,7 +570,7 @@ export function CheckoutForm({
               </div>
               {appliedCoupon && (
                 <p className="text-xs text-emerald-400 flex items-center gap-1">
-                  <Check className="w-3.5 h-3.5" />
+                  <IconCheck className="w-3.5 h-3.5" />
                   {isAr ? `تم تطبيق الكوبون (${appliedCoupon.code})` : `Coupon applied (${appliedCoupon.code})`}
                 </p>
               )}
@@ -551,7 +623,7 @@ export function CheckoutForm({
             </div>
 
             <div className="pt-2 text-[11px] text-neutral-500 flex items-center justify-center gap-1">
-              <ShieldCheck className="w-4 h-4 text-amber-500/80" />
+              <IconShieldCheck className="w-4 h-4 text-amber-500/80" />
               <span>{isAr ? "دفع آمن 100% ومشفر بواسطة AURA" : "100% Secure Checkout Guaranteed"}</span>
             </div>
           </div>
