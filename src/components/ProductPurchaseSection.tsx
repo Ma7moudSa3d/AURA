@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useLocale, useTranslations } from "next-intl";
+import { useLocale } from "next-intl";
 import { useCartStore } from "@/lib/cart-store";
 
 function IconShoppingBag(props: React.SVGProps<SVGSVGElement>) {
@@ -178,3 +178,5 @@ export function ProductPurchaseSection({ product }: { product: any }) {
     </div>
   );
 }
+
+export default ProductPurchaseSection;
