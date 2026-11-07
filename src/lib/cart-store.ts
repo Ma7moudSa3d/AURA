@@ -1,35 +1,77 @@
-"use client";
-// Zustand chosen over React Query: server data is fetched in Server Components, so the only client state
-// is the cart + drawer UI. Zustand's persist middleware gives guest carts (localStorage) with ~1KB of code.
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
+// src/lib/cart-store.ts
+"use client"
 
-export type CartLine = { product_id: string; slug: string; title: string; image: string | null; price: number; qty: number; stock: number };
+import { create } from "zustand"
+import { persist } from "zustand/middleware"
 
-type S = {
-  lines: CartLine[]; open: boolean;
-  add: (l: Omit<CartLine, "qty">, qty?: number) => void;
-  setQty: (id: string, qty: number) => void;
-  remove: (id: string) => void;
-  clear: () => void; setOpen: (o: boolean) => void;
-  replace: (lines: CartLine[]) => void;
-};
+export interface CartItem {
+  id: string
+  product_id: string
+  title_en: string
+  title_ar: string
+  title?: string
+  volume: string
+  price: number
+  discount_price?: number | null
+  qty: number
+  image?: string
+}
 
-export const useCart = create<S>()(persist((set) => ({
-  lines: [], open: false,
-  add: (l, qty = 1) => set((s) => {
-    const ex = s.lines.find((x) => x.product_id === l.product_id);
-    const lines = ex
-      ? s.lines.map((x) => (x.product_id === l.product_id ? { ...x, ...l, qty: Math.min(Math.min(20, l.stock), x.qty + qty) } : x))
-      : [...s.lines, { ...l, qty: Math.min(Math.min(20, l.stock), qty) }];
-    return { lines, open: true };
-  }),
-  setQty: (id, qty) => set((s) => ({ lines: s.lines.map((x) => (x.product_id === id ? { ...x, qty: Math.max(1, Math.min(20, x.stock, qty)) } : x)) })),
-  remove: (id) => set((s) => ({ lines: s.lines.filter((x) => x.product_id !== id) })),
-  clear: () => set({ lines: [] }),
-  setOpen: (open) => set({ open }),
-  replace: (lines) => set({ lines }),
-}), { name: "aura-cart", partialize: (s) => ({ lines: s.lines }) }));
+interface CartState {
+  items: CartItem[]
+  addItem: (item: any) => void
+  removeItem: (id: string) => void
+  updateQty: (id: string, qty: number) => void
+  clearCart: () => void
+}
 
-export const cartCount = (lines: CartLine[]) => lines.reduce((n, l) => n + l.qty, 0);
-export const cartSubtotal = (lines: CartLine[]) => lines.reduce((n, l) => n + l.qty * l.price, 0);
+export const useCartStore = create<CartState>()(
+  persist(
+    (set, get) => ({
+      items: [],
+      addItem: (item: any) => {
+        const current = get().items || []
+        // معرّف فريد يجمع بين معرّف المنتج والسعة المختارة
+        const itemId = item.id || `${item.product_id}-${item.volume || "50ml"}`
+        const existingIndex = current.findIndex((i) => i.id === itemId)
+
+        let updated = [...current]
+        if (existingIndex > -1) {
+          updated[existingIndex] = {
+            ...updated[existingIndex],
+            qty: (updated[existingIndex].qty || 1) + (item.qty || 1),
+            price: Number(item.price) || updated[existingIndex].price,
+          }
+        } else {
+          updated.push({
+            id: itemId,
+            product_id: item.product_id,
+            title_en: item.title_en || item.title || "AURA Perfume",
+            title_ar: item.title_ar || item.title || "عطر أورا",
+            title: item.title || item.title_en || "AURA Perfume",
+            volume: item.volume || "50ml",
+            price: Number(item.price) || 0,
+            discount_price: item.discount_price ? Number(item.discount_price) : null,
+            qty: item.qty || 1,
+            image: item.image || undefined,
+          })
+        }
+        set({ items: updated })
+      },
+      removeItem: (id: string) => {
+        set({ items: (get().items || []).filter((i) => i.id !== id) })
+      },
+      updateQty: (id: string, qty: number) => {
+        set({
+          items: (get().items || []).map((i) =>
+            i.id === id ? { ...i, qty: Math.max(1, qty) } : i
+          ),
+        })
+      },
+      clearCart: () => set({ items: [] }),
+    }),
+    {
+      name: "aura_cart_store_v2",
+    }
+  )
+)
