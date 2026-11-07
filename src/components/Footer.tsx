@@ -3,11 +3,7 @@ import Link from "next/link"
 import { getLocale, getTranslations } from "next-intl/server"
 import WhatsAppButton from "@/components/WhatsAppButton"
 
-interface FooterProps {
-  settings?: any
-}
-
-export default async function Footer({ settings }: FooterProps = {}) {
+export default async function Footer({ settings }: { settings?: any } = {}) {
   const locale = await getLocale()
   const t = await getTranslations("footer")
   const n = await getTranslations("nav")
