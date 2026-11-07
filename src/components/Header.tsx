@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useTranslations, useLocale } from "next-intl";
 import { useCart, CartStoreState } from "@/lib/cart-store";
 
-// Inline SVGs replacing lucide-react dependencies
 function IconGlobe(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
@@ -46,11 +45,10 @@ function IconX(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-export default function Header({ loggedIn, whatsapp }: { loggedIn: boolean; whatsapp: string }) {
+export default function Header({ loggedIn, whatsapp }: { loggedIn?: boolean; whatsapp?: string }) {
   const t = useTranslations("nav");
   const locale = useLocale();
 
-  // Typed Cart Store Selector
   const lines = useCart((s: CartStoreState) => s.lines || s.items || []);
   const setOpen = useCart((s: CartStoreState) => s.setOpen);
 
@@ -63,13 +61,17 @@ export default function Header({ loggedIn, whatsapp }: { loggedIn: boolean; what
 
   const totalQty = lines.reduce((acc: number, item: any) => acc + (item.quantity ?? item.qty ?? 0), 0);
 
-  const toggleLanguageHref = locale === "ar" ? "/en" : "/ar";
+  const handleLanguageToggle = () => {
+    const nextLocale = locale === "ar" ? "en" : "ar";
+    document.cookie = `NEXT_LOCALE=${nextLocale}; path=/; max-age=31536000`;
+    window.location.reload();
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-black/80 backdrop-blur-md">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
-        <Link href={`/${locale}`} className="flex items-center gap-2 group">
+        <Link href="/" className="flex items-center gap-2 group">
           <span className="h-display text-3xl tracking-tighter text-white transition-colors group-hover:text-amber-500">
             AURA
           </span>
@@ -77,13 +79,13 @@ export default function Header({ loggedIn, whatsapp }: { loggedIn: boolean; what
 
         {/* Desktop Nav */}
         <nav className="hidden md:flex items-center gap-8">
-          <Link href={`/${locale}/shop`} className="text-sm font-medium text-neutral-400 hover:text-white transition-colors">
+          <Link href="/shop" className="text-sm font-medium text-neutral-400 hover:text-white transition-colors">
             {t("shop")}
           </Link>
-          <Link href={`/${locale}/about`} className="text-sm font-medium text-neutral-400 hover:text-white transition-colors">
+          <Link href="/about" className="text-sm font-medium text-neutral-400 hover:text-white transition-colors">
             {t("about")}
           </Link>
-          <Link href={`/${locale}/contact`} className="text-sm font-medium text-neutral-400 hover:text-white transition-colors">
+          <Link href="/contact" className="text-sm font-medium text-neutral-400 hover:text-white transition-colors">
             {t("contact")}
           </Link>
         </nav>
@@ -91,13 +93,14 @@ export default function Header({ loggedIn, whatsapp }: { loggedIn: boolean; what
         {/* Actions */}
         <div className="flex items-center gap-2 sm:gap-4">
           {/* Language Toggle */}
-          <Link
-            href={toggleLanguageHref}
+          <button
+            onClick={handleLanguageToggle}
+            type="button"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold text-neutral-300 hover:bg-white/10 transition-colors"
           >
-            <IconGlobe className="w-3.5 h-3.5" />
+            <IconGlobe className="w-3.5 h-3.5 text-amber-400" />
             <span>{locale === "ar" ? "EN" : "العربية"}</span>
-          </Link>
+          </button>
 
           {/* Cart Toggle Button */}
           <button
@@ -117,11 +120,11 @@ export default function Header({ loggedIn, whatsapp }: { loggedIn: boolean; what
           <div className="hidden sm:block border-l border-white/10 h-6 mx-1" />
 
           {loggedIn ? (
-            <Link href={`/${locale}/profile`} className="hidden sm:flex items-center gap-2 p-2 text-neutral-400 hover:text-white transition-colors">
+            <Link href="/profile" className="hidden sm:flex items-center gap-2 p-2 text-neutral-400 hover:text-white transition-colors">
               <IconUser className="h-6 w-6" />
             </Link>
           ) : (
-            <Link href={`/${locale}/login`} className="hidden sm:block text-xs font-bold tracking-widest uppercase text-amber-500 hover:text-amber-400 transition-colors">
+            <Link href="/login" className="hidden sm:block text-xs font-bold tracking-widest uppercase text-amber-500 hover:text-amber-400 transition-colors">
               {t("login")}
             </Link>
           )}
@@ -141,14 +144,14 @@ export default function Header({ loggedIn, whatsapp }: { loggedIn: boolean; what
       {menu && (
         <div className="fixed inset-0 top-20 z-40 bg-black/95 md:hidden animate-in fade-in slide-in-from-top-5">
           <nav className="flex flex-col items-center justify-center gap-8 h-full pb-20">
-            <Link href={`/${locale}/shop`} onClick={() => setMenu(false)} className="text-2xl font-medium">{t("shop")}</Link>
-            <Link href={`/${locale}/about`} onClick={() => setMenu(false)} className="text-2xl font-medium">{t("about")}</Link>
-            <Link href={`/${locale}/contact`} onClick={() => setMenu(false)} className="text-2xl font-medium">{t("contact")}</Link>
+            <Link href="/shop" onClick={() => setMenu(false)} className="text-2xl font-medium">{t("shop")}</Link>
+            <Link href="/about" onClick={() => setMenu(false)} className="text-2xl font-medium">{t("about")}</Link>
+            <Link href="/contact" onClick={() => setMenu(false)} className="text-2xl font-medium">{t("contact")}</Link>
             <div className="w-12 h-px bg-white/10 my-2" />
             {loggedIn ? (
-              <Link href={`/${locale}/profile`} onClick={() => setMenu(false)} className="text-xl text-amber-500">{t("profile")}</Link>
+              <Link href="/profile" onClick={() => setMenu(false)} className="text-xl text-amber-500">{t("profile")}</Link>
             ) : (
-              <Link href={`/${locale}/login`} onClick={() => setMenu(false)} className="text-xl text-amber-500 uppercase tracking-widest">{t("login")}</Link>
+              <Link href="/login" onClick={() => setMenu(false)} className="text-xl text-amber-500 uppercase tracking-widest">{t("login")}</Link>
             )}
           </nav>
         </div>
