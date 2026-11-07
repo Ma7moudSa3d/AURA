@@ -12,54 +12,48 @@ export interface ProductCardProps {
 }
 
 const ProductCard: React.FC<ProductCardProps> = (props) => {
-  const product = props.product || props.p;
+  const rawProduct = props.product || props.p;
   const { addItem } = useCart();
 
-  if (!product) return null;
+  if (!rawProduct) return null;
 
-  // حل وتحديد رابط الصورة المباشر من Supabase
+  // جلب العنوان الحقيقي من أعمدة title_en / title_ar
+  const title = rawProduct.title_en || rawProduct.title_ar || rawProduct.name || "AURA Fragrance";
+  const basePrice = Number(rawProduct.discount_price || rawProduct.price) || 0;
+
+  // جلب رابط الصورة من product_images أو image_url
+  let rawImage = rawProduct.image_url || rawProduct.image;
+  if (!rawImage && rawProduct.product_images && Array.isArray(rawProduct.product_images) && rawProduct.product_images.length > 0) {
+    const firstImg = rawProduct.product_images[0];
+    rawImage = typeof firstImg === "string" ? firstImg : (firstImg.image_url || firstImg.url || firstImg.path);
+  }
+
   const getImageUrl = (imgData: any) => {
     if (!imgData) return "https://placehold.co/600x800/0a0a0a/C5A059?text=AURA+Fragrance";
-    
-    let path = imgData;
-    if (Array.isArray(imgData)) path = imgData[0];
-    if (typeof path === "object" && path !== null) path = path.url || path.path || "";
+    let path = Array.isArray(imgData) ? imgData[0] : imgData;
+    if (typeof path === "object" && path !== null) path = path.image_url || path.url || path.path || "";
     if (typeof path !== "string" || !path.trim()) return "https://placehold.co/600x800/0a0a0a/C5A059?text=AURA+Fragrance";
 
     path = path.trim();
-
-    // رابط كامل
-    if (path.startsWith("http://") || path.startsWith("https://")) {
-      return path;
-    }
+    if (path.startsWith("http://") || path.startsWith("https://")) return path;
 
     const cleanPath = path.startsWith("/") ? path.substring(1) : path;
-    
     if (cleanPath.startsWith("products/")) {
       return `https://qjwisnczaffrouaadgzq.supabase.co/storage/v1/object/public/${cleanPath}`;
     }
-
     return `https://qjwisnczaffrouaadgzq.supabase.co/storage/v1/object/public/products/${cleanPath}`;
   };
 
-  // ترتيب أحجام العطور تصاعدياً (5ML < 30ML < 50ML < 100ML)
-  const sortedVariants = product.variants && Array.isArray(product.variants)
-    ? [...product.variants].sort((a, b) => (parseInt(a.volume) || 0) - (parseInt(b.volume) || 0))
-    : [];
-
-  const minPrice = sortedVariants.length > 0 
-    ? Math.min(...sortedVariants.map((v: any) => Number(v.price) || 0)) 
-    : (Number(product.price) || 0);
-
-  const imageUrl = getImageUrl(product.image_url || product.image || product.images);
+  const imageUrl = getImageUrl(rawImage);
+  const defaultVolumes = ["5ML", "30ML", "50ML", "100ML"];
 
   return (
     <div className="group relative flex flex-col bg-[#0A0A0A] border border-zinc-800 rounded-lg overflow-hidden transition-all duration-300 hover:border-[#C5A059]/50 h-full">
       {/* صورة العطر */}
-      <Link href={`/product/${product.id}`} className="relative h-80 w-full overflow-hidden bg-zinc-900 block">
+      <Link href={`/product/${rawProduct.id}`} className="relative h-80 w-full overflow-hidden bg-zinc-900 block">
         <Image
           src={imageUrl}
-          alt={product.name || "AURA Fragrance"}
+          alt={title}
           fill
           unoptimized
           className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -68,51 +62,43 @@ const ProductCard: React.FC<ProductCardProps> = (props) => {
             e.target.src = "https://placehold.co/600x800/0a0a0a/C5A059?text=AURA+Fragrance";
           }}
         />
-        {product.is_featured && (
+        {rawProduct.is_featured && (
           <div className="absolute top-3 left-3 bg-[#C5A059] text-black text-[10px] font-bold px-2 py-1 rounded-sm uppercase tracking-widest shadow-lg">
             Featured
           </div>
         )}
       </Link>
 
-      {/* التفاصيل */}
+      {/* تفاصيل العطر */}
       <div className="p-4 flex flex-col flex-grow">
-        {/* الأحجام */}
+        {/* أحجام العطر مرتبة تصاعدياً */}
         <div className="flex flex-wrap gap-1.5 mb-3">
-          {sortedVariants.length > 0 ? (
-            sortedVariants.map((v: any, index: number) => (
-              <span key={v.id || index} className="text-[9px] font-medium px-2 py-0.5 bg-zinc-800 text-zinc-400 border border-zinc-700 rounded-full">
-                {v.volume}
-              </span>
-            ))
-          ) : (
-            <span className="text-[9px] font-medium px-2 py-0.5 bg-zinc-800 text-zinc-400 border border-zinc-700 rounded-full">
-              50ML
+          {defaultVolumes.map((vol) => (
+            <span key={vol} className="text-[9px] font-medium px-2 py-0.5 bg-zinc-800 text-zinc-400 border border-zinc-700 rounded-full">
+              {vol}
             </span>
-          )}
+          ))}
         </div>
 
-        <Link href={`/product/${product.id}`}>
+        <Link href={`/product/${rawProduct.id}`}>
           <h3 className="text-white font-medium text-sm mb-1 group-hover:text-[#C5A059] transition-colors line-clamp-2 min-h-[2.5rem] uppercase tracking-wider">
-            {product.name}
+            {title}
           </h3>
         </Link>
         
         <p className="text-[#D4AF37] font-bold text-sm mt-auto">
           <span className="text-zinc-500 text-[10px] font-normal mr-1 uppercase tracking-tighter">From</span>
-          {minPrice} EGP
+          {basePrice} EGP
         </p>
 
         <button
           onClick={() => {
-            const firstVariant = sortedVariants[0];
             addItem({
-              id: `${product.id}-${firstVariant?.id || 'default'}`,
-              product_id: product.id,
-              variant_id: firstVariant?.id,
-              name: product.name,
-              price: firstVariant ? Number(firstVariant.price) : minPrice,
-              volume: firstVariant ? firstVariant.volume : "50ML",
+              id: `${rawProduct.id}-50ml`,
+              product_id: rawProduct.id,
+              name: title,
+              price: basePrice,
+              volume: rawProduct.volume || "50ML",
               image_url: imageUrl,
               quantity: 1
             });
