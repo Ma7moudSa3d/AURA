@@ -1,15 +1,17 @@
-import { getTranslations } from "next-intl/server";
-import StaticPage from "@/components/StaticPage";
-
-export const metadata = { title: "FAQ" };
-export default async function Faq() {
-  const t = await getTranslations("pages");
-  const items = t.raw("faq") as { q: string; a: string }[];
+export default function FAQPage() {
   return (
-    <StaticPage title={t("faqTitle")}>
-      {items.map((i) => (
-        <details key={i.q} className="card group p-5"><summary className="h-display cursor-pointer text-xl group-open:text-gold">{i.q}</summary><p className="mt-3">{i.a}</p></details>
-      ))}
-    </StaticPage>
+    <div className="max-w-3xl mx-auto px-4 py-16 space-y-8">
+      <h1 className="h-display text-4xl text-center text-amber-100">Frequently Asked Questions</h1>
+      <div className="space-y-4">
+        <div className="p-6 rounded-2xl bg-neutral-900/80 border border-neutral-800 space-y-2">
+          <h3 className="text-amber-400 font-medium">How long does shipping take?</h3>
+          <p className="text-sm text-neutral-300">Shipping takes 2 to 4 business days anywhere in Egypt.</p>
+        </div>
+        <div className="p-6 rounded-2xl bg-neutral-900/80 border border-neutral-800 space-y-2">
+          <h3 className="text-amber-400 font-medium">What payment options do you support?</h3>
+          <p className="text-sm text-neutral-300">InstaPay (Full or 25% Deposit) and Cash on Delivery (COD).</p>
+        </div>
+      </div>
+    </div>
   );
 }
