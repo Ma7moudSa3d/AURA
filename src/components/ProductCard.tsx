@@ -1,33 +1,90 @@
-import Link from "next/link";
-import Image from "next/image";
-import { getLocale, getTranslations } from "next-intl/server";
-import { effectivePrice, imageUrl, money, title } from "@/lib/format";
-import type { Product } from "@/lib/types";
+// src/components/ProductCard.tsx
+import Link from "next/link"
+import { getLocale, getTranslations } from "next-intl/server"
+import { imageUrl, money, title } from "@/lib/format"
 
-export default async function ProductCard({ p }: { p: Product }) {
-  const locale = await getLocale();
-  const t = await getTranslations("product");
-  const c = await getTranslations("common");
-  const price = effectivePrice(p);
-  const img = [...(p.product_images ?? [])].sort((a, b) => a.sort_order - b.sort_order)[0];
-  const sale = price < Number(p.price);
+export default async function ProductCard({ product }: { product: any }) {
+  const locale = await getLocale()
+  const c = await getTranslations("common")
+
+  const p = product
+  const rawImages = p?.product_images ?? p?.images ?? []
+  const mainImage = rawImages.length > 0 ? imageUrl(rawImages[0].path) : "/placeholder.jpg"
+
+  // قراءة مصفوفة السعات إن وجدت
+  let variants: any[] = []
+  if (Array.isArray(p?.variants)) {
+    variants = p.variants
+  } else if (typeof p?.variants === "string") {
+    try {
+      variants = JSON.parse(p.variants)
+    } catch (e) {
+      variants = []
+    }
+  }
+
+  // عرض السعات المتوفرة
+  let volumeText = p?.volume || "50ml"
+  if (variants.length > 1) {
+    const vols = variants.map((v: any) => v.volume).filter(Boolean)
+    if (vols.length > 0) {
+      volumeText = vols.join(" · ")
+    }
+  }
+
+  // حساب أقل سعر متوفر
+  let minPrice = Number(p?.price || 0)
+  let minDiscountPrice: number | null = p?.discount_price ? Number(p.discount_price) : null
+
+  if (variants.length > 0) {
+    const prices = variants.map((v: any) => {
+      const dp = v.discount_price ? Number(v.discount_price) : null
+      const pr = Number(v.price || 0)
+      return dp && dp > 0 ? dp : pr
+    })
+    minPrice = Math.min(...prices)
+  }
+
+  const effectiveP = minDiscountPrice && minDiscountPrice > 0 ? minDiscountPrice : minPrice
+  const hasDiscount = p?.discount_price && Number(p.discount_price) < Number(p.price)
+
   return (
-    <Link href={`/product/${p.slug}`} className="card group block overflow-hidden">
-      <div className="relative aspect-[4/5] overflow-hidden bg-surface2">
-        {img ? <Image src={imageUrl(img.path)} alt={title(p, locale)} fill sizes="(max-width:768px) 50vw, 25vw" className="object-cover transition duration-700 group-hover:scale-105" />
-             : <div className="grid h-full place-items-center h-display text-5xl text-gold/30">A</div>}
-        {p.stock_qty === 0 && <span className="absolute start-3 top-3 bg-ink/80 px-3 py-1 text-[10px] uppercase tracking-widest">{t("soldOut")}</span>}
-        {sale && p.stock_qty > 0 && <span className="absolute start-3 top-3 bg-gold px-3 py-1 text-[10px] uppercase tracking-widest text-ink">
-          −{Math.round((1 - price / Number(p.price)) * 100)}%</span>}
+    <div className="group relative flex flex-col justify-between border border-white/5 bg-surface/50 p-4 transition-all hover:border-gold/30 rounded-sm">
+      <div>
+        <Link href={`/product/${p.slug}`} className="block overflow-hidden">
+          <div className="aspect-square w-full overflow-hidden bg-ink">
+            <img
+              src={mainImage}
+              alt={title(p, locale)}
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            />
+          </div>
+        </Link>
+        <div className="mt-4">
+          <p className="text-[10px] uppercase tracking-widest text-gold/80 font-bold">
+            {p?.concentration || "EDP"} · {volumeText}
+          </p>
+          <Link href={`/product/${p.slug}`}>
+            <h3 className="h-display mt-1 text-lg font-serif text-cream hover:text-gold transition">
+              {title(p, locale)}
+            </h3>
+          </Link>
+        </div>
       </div>
-      <div className="p-4">
-        <h3 className="h-display text-xl transition group-hover:text-gold">{title(p, locale)}</h3>
-        <p className="mt-1 text-xs uppercase tracking-widest text-cream/50">{p.concentration} · {p.volume}</p>
-        <p className="mt-2 text-sm">
-          <span className="text-gold">{money(price, locale)} {c("currency")}</span>
-          {sale && <span className="ms-2 text-cream/40 line-through">{money(Number(p.price), locale)}</span>}
-        </p>
+
+      <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-3">
+        <div>
+          <span className="text-sm font-bold text-gold">
+            {variants.length > 1 ? (locale === "ar" ? "من " : "From ") : ""}
+            {money(effectiveP, locale)} {c("currency")}
+          </span>
+          {hasDiscount && (
+            <span className="ms-2 text-xs text-cream/40 line-through">
+              {money(Number(p.price), locale)}
+            </span>
+          )}
+        </div>
       </div>
-    </Link>
-  );
+    </div>
+  )
 }
