@@ -1,15 +1,43 @@
 import { Resend } from "resend";
 import nodemailer from "nodemailer";
 
-const FROM = process.env.EMAIL_FROM ?? "AURA <onboarding@resend.dev>";
-export const OWNER = process.env.OWNER_EMAIL ?? "ofoftot@gmail.com";
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+const FROM = process.env.EMAIL_FROM ?? "AURA <aurafragrances111@gmail.com>";
+export const OWNER = process.env.OWNER_EMAIL ?? "aurafragrances111@gmail.com";
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://aura-perfume-weld.vercel.app";
 
 export const esc = (s: unknown) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 
-/** Sends via Resend (free tier); falls back to SMTP (Nodemailer) if SMTP_HOST is configured or Resend fails. */
+/** Sends via Brevo API; falls back to Resend or SMTP if configured. */
 export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+  // 1. الدعم المباشر لـ Brevo API
+  const brevoKey = process.env.BREVO_API_KEY;
+  if (brevoKey) {
+    try {
+      const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "accept": "application/json",
+          "api-key": brevoKey,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          sender: { name: "AURA Fragrances", email: OWNER },
+          to: [{ email: to }],
+          subject: subject,
+          htmlContent: html,
+        }),
+      });
+
+      if (res.ok) return true;
+      const errText = await res.text();
+      console.error("Brevo API Error:", errText);
+    } catch (e) {
+      console.error("Brevo API failed:", e);
+    }
+  }
+
+  // 2. Fallback لـ Resend
   if (process.env.RESEND_API_KEY) {
     try {
       const { error } = await new Resend(process.env.RESEND_API_KEY).emails.send({ from: FROM, to, subject, html });
@@ -17,6 +45,8 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
       console.error("Resend error", error);
     } catch (e) { console.error("Resend failed", e); }
   }
+
+  // 3. Fallback لـ SMTP
   if (process.env.SMTP_HOST) {
     try {
       const t = nodemailer.createTransport({
@@ -27,6 +57,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
       return true;
     } catch (e) { console.error("SMTP failed", e); }
   }
+
   return false;
 }
 
