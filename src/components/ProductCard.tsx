@@ -15,53 +15,57 @@ const ProductCard: React.FC<ProductCardProps> = (props) => {
   const product = props.product || props.p;
   const { addItem } = useCart();
 
-  if (!product) {
-    return null;
-  }
+  if (!product) return null;
 
-  // معالجة ورصف رابط الصورة ليعمل دائماً مع Supabase Storage
-  const getImageUrl = (imagePath: any) => {
-    if (!imagePath) return "https://placehold.co/400x600/0a0a0a/C5A059?text=AURA+Fragrance";
+  // حل وتحديد رابط الصورة المباشر من Supabase
+  const getImageUrl = (imgData: any) => {
+    if (!imgData) return "https://placehold.co/600x800/0a0a0a/C5A059?text=AURA+Fragrance";
     
-    const path = Array.isArray(imagePath) ? imagePath[0] : imagePath;
-    if (typeof path !== "string") return "https://placehold.co/400x600/0a0a0a/C5A059?text=AURA+Fragrance";
+    let path = imgData;
+    if (Array.isArray(imgData)) path = imgData[0];
+    if (typeof path === "object" && path !== null) path = path.url || path.path || "";
+    if (typeof path !== "string" || !path.trim()) return "https://placehold.co/600x800/0a0a0a/C5A059?text=AURA+Fragrance";
 
+    path = path.trim();
+
+    // رابط كامل
     if (path.startsWith("http://") || path.startsWith("https://")) {
       return path;
     }
 
     const cleanPath = path.startsWith("/") ? path.substring(1) : path;
+    
+    if (cleanPath.startsWith("products/")) {
+      return `https://qjwisnczaffrouaadgzq.supabase.co/storage/v1/object/public/${cleanPath}`;
+    }
+
     return `https://qjwisnczaffrouaadgzq.supabase.co/storage/v1/object/public/products/${cleanPath}`;
   };
 
-  // ترتيب أحجام العطور تصاعدياً (5ML -> 30ML -> 50ML -> 100ML)
+  // ترتيب أحجام العطور تصاعدياً (5ML < 30ML < 50ML < 100ML)
   const sortedVariants = product.variants && Array.isArray(product.variants)
-    ? [...product.variants].sort((a, b) => {
-        const volA = parseInt(a.volume) || 0;
-        const volB = parseInt(b.volume) || 0;
-        return volA - volB;
-      })
+    ? [...product.variants].sort((a, b) => (parseInt(a.volume) || 0) - (parseInt(b.volume) || 0))
     : [];
 
   const minPrice = sortedVariants.length > 0 
     ? Math.min(...sortedVariants.map((v: any) => Number(v.price) || 0)) 
     : (Number(product.price) || 0);
 
-  const imageUrl = getImageUrl(product.image_url);
+  const imageUrl = getImageUrl(product.image_url || product.image || product.images);
 
   return (
     <div className="group relative flex flex-col bg-[#0A0A0A] border border-zinc-800 rounded-lg overflow-hidden transition-all duration-300 hover:border-[#C5A059]/50 h-full">
-      {/* صورة المنتج */}
+      {/* صورة العطر */}
       <Link href={`/product/${product.id}`} className="relative h-80 w-full overflow-hidden bg-zinc-900 block">
         <Image
           src={imageUrl}
           alt={product.name || "AURA Fragrance"}
           fill
           unoptimized
-          className="object-cover transition-transform duration-500 group-hover:scale-110"
+          className="object-cover transition-transform duration-500 group-hover:scale-105"
           onError={(e: any) => {
             e.target.srcset = "";
-            e.target.src = "https://placehold.co/400x600/0a0a0a/C5A059?text=AURA+Fragrance";
+            e.target.src = "https://placehold.co/600x800/0a0a0a/C5A059?text=AURA+Fragrance";
           }}
         />
         {product.is_featured && (
@@ -71,9 +75,9 @@ const ProductCard: React.FC<ProductCardProps> = (props) => {
         )}
       </Link>
 
-      {/* تفاصيل المنتج */}
+      {/* التفاصيل */}
       <div className="p-4 flex flex-col flex-grow">
-        {/* أحجام المنتج مرتبة تصاعدياً */}
+        {/* الأحجام */}
         <div className="flex flex-wrap gap-1.5 mb-3">
           {sortedVariants.length > 0 ? (
             sortedVariants.map((v: any, index: number) => (
