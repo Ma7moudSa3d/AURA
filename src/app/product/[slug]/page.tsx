@@ -2,12 +2,8 @@ import React from "react";
 import { createClient } from "@supabase/supabase-js";
 import ProductPurchaseSection from "@/components/ProductPurchaseSection";
 
-const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ||
-  "https://qjwisnczaffrouaadgzq.supabase.co";
-
-const supabaseAnonKey =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://qjwisnczaffrouaadgzq.supabase.co";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
@@ -22,49 +18,31 @@ export default async function ProductPage({ params }: Props) {
   if (!slugOrId) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] px-6 text-center text-white">
-        <h1 className="font-serif text-3xl text-[#C5A059]">
-          Fragrance Not Found
-        </h1>
+        <h1 className="font-serif text-3xl text-[#C5A059]">Fragrance Not Found</h1>
       </div>
     );
   }
 
-  // البحث أولاً عن طريق الـ slug
-  let { data: product, error } = await supabase
+  let { data: product } = await supabase
     .from("products")
     .select("*, product_images(*)")
-    .eq("slug", slugOrId)
+    .eq("id", slugOrId)
     .maybeSingle();
 
-  // إذا لم يجده بالـ slug يبحث عن طريق الـ id
   if (!product) {
-    const { data: productById, error: idError } = await supabase
+    const { data: productBySlug } = await supabase
       .from("products")
       .select("*, product_images(*)")
-      .eq("id", slugOrId)
+      .eq("slug", slugOrId)
       .maybeSingle();
-    
-    product = productById;
-    if (idError) error = idError;
+    product = productBySlug;
   }
 
-  if (error || !product) {
+  if (!product) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-[#0A0A0A] px-6 text-center text-white">
-        <h1 className="font-serif text-3xl text-[#C5A059]">
-          Fragrance Not Found
-        </h1>
-
-        <p className="mt-3 text-sm text-zinc-500">
-          Slug / ID: {slugOrId}
-        </p>
-
-        {error && (
-          <p className="mt-3 max-w-xl text-xs text-red-400">
-            {error.message}
-          </p>
-        )}
-
+        <h1 className="font-serif text-3xl text-[#C5A059]">Fragrance Not Found</h1>
+        <p className="mt-3 text-sm text-zinc-500">ID / Slug: {slugOrId}</p>
         <a
           href="/shop"
           className="mt-6 border border-[#C5A059] px-6 py-3 text-xs font-bold uppercase tracking-[0.22em] text-[#C5A059] transition-all hover:bg-[#C5A059] hover:text-black"
@@ -75,35 +53,22 @@ export default async function ProductPage({ params }: Props) {
     );
   }
 
-  // استخراج الصورة المباشرة من product_images
-  let imageUrl = "";
-
-  if (
-    Array.isArray(product.product_images) &&
-    product.product_images.length > 0
-  ) {
+  let rawImage: any = null;
+  if (Array.isArray(product.product_images) && product.product_images.length > 0) {
     const firstImg = product.product_images[0];
-    imageUrl =
-      typeof firstImg === "string"
-        ? firstImg
-        : (firstImg?.image_url || firstImg?.url || firstImg?.path || "");
-  } else if (product.image_url || product.image) {
-    imageUrl = product.image_url || product.image;
+    rawImage = typeof firstImg === "string" ? firstImg : (firstImg?.path || firstImg?.image_url || firstImg?.url);
   }
-
-  // معالجة الرابط ليكون مباشر من Supabase Storage
-  if (imageUrl && !imageUrl.startsWith("http")) {
-    const cleanPath = imageUrl.startsWith("/") ? imageUrl.substring(1) : imageUrl;
-    imageUrl = cleanPath.startsWith("products/")
-      ? `https://qjwisnczaffrouaadgzq.supabase.co/storage/v1/object/public/${cleanPath}`
-      : `https://qjwisnczaffrouaadgzq.supabase.co/storage/v1/object/public/products/${cleanPath}`;
+  if (!rawImage) {
+    rawImage = product.image_url || product.image || product.id;
   }
 
   const normalizedProduct = {
     ...product,
     name: product.title_en || product.title_ar || "AURA Fragrance",
     price: Number(product.discount_price || product.price || 0),
-    image_url: imageUrl,
+    description: product.description_en || product.description_ar || product.description || "",
+    image_url: rawImage,
+    image: rawImage,
   };
 
   return (
