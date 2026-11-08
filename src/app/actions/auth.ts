@@ -34,7 +34,10 @@ export async function signup(fd: FormData): Promise<Res> {
     email: p.data.email, password: p.data.password,
     options: { data: { full_name: p.data.full_name }, emailRedirectTo: `${SITE}/auth/callback?next=${encodeURIComponent(next)}` },
   });
-  if (error) return { ok: false, error: "FAILED" };
+  if (error) {
+    console.error("[auth] signup failed:", error.status, error.code, error.message);
+    return { ok: false, error: error.status === 429 || error.code === "over_email_send_rate_limit" ? "EMAIL_RATE_LIMIT" : "FAILED" };
+  }
   return { ok: true, info: "VERIFY" };
 }
 
@@ -42,7 +45,8 @@ export async function forgotPassword(fd: FormData): Promise<Res> {
   const email = z.string().trim().email().safeParse(fd.get("email"));
   if (!email.success) return { ok: false, error: "INVALID" };
   if (!rateLimit(`forgot:${ip()}`, 5, 60 * 60_000)) return { ok: false, error: "RATE_LIMITED" };
-  await supabaseServer().auth.resetPasswordForEmail(email.data, { redirectTo: `${SITE}/auth/callback?next=/reset-password` });
+  const { error } = await supabaseServer().auth.resetPasswordForEmail(email.data, { redirectTo: `${SITE}/auth/callback?next=/reset-password` });
+  if (error) console.error("[auth] reset email failed:", error.status, error.code, error.message);
   return { ok: true, info: "SENT" }; // same response whether or not the email exists
 }
 

@@ -107,9 +107,16 @@ export async function saveProduct(fd: FormData): Promise<{ ok: boolean; error?: 
     };
 
     const sb = supabaseServer();
-    const res = id
-      ? await sb.from("products").update(payload).eq("id", id).select("id").single()
-      : await sb.from("products").insert(payload).select("id").single();
+    const write = (body: Record<string, unknown>) =>
+      id
+        ? sb.from("products").update(body).eq("id", id).select("id").single()
+        : sb.from("products").insert(body).select("id").single();
+    let res = await write(payload);
+    // Databases created from the original migration have no products.variants column: retry without it.
+    if (res.error && /variants/i.test(res.error.message)) {
+      const { variants: _omit, ...rest } = payload;
+      res = await write(rest);
+    }
 
     if (res.error || !res.data) {
       return { ok: false, error: res.error?.message || "Failed to save product in DB" };
@@ -245,4 +252,45 @@ export async function moderateReview(id: string, approve: boolean) {
   if (approve) await sb.from("reviews").update({ is_approved: true }).eq("id", id);
   else await sb.from("reviews").delete().eq("id", id);
   revalidatePath("/admin/reviews");
+}
+
+// ── Coupons (used by the admin coupons page; every call is admin-gated and runs server-side) ──
+export async function adminListCoupons() {
+  await requireAdmin();
+  const { data } = await supabaseService().from("coupons").select("*").order("code");
+  return data ?? [];
+}
+
+export async function adminCreateCoupon(input: {
+  code: string; type: "percent" | "fixed"; value: number; expires_at: string | null; max_uses: number | null;
+  free_shipping: boolean; first_order_only: boolean;
+}): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin();
+  const p = z.object({
+    code: z.string().trim().min(3).max(30).transform((s) => s.toUpperCase()),
+    type: z.enum(["percent", "fixed"]),
+    value: z.number().positive().max(100000),
+    expires_at: z.string().nullable(),
+    max_uses: z.number().int().positive().nullable(),
+    free_shipping: z.boolean(),
+    first_order_only: z.boolean(),
+  }).safeParse(input);
+  if (!p.success) return { ok: false, error: "Invalid coupon data" };
+
+  const sb = supabaseService();
+  const base = { code: p.data.code, type: p.data.type, value: p.data.value, expires_at: p.data.expires_at, max_uses: p.data.max_uses, is_active: true };
+  // Newer columns exist on some databases only; fall back to the base schema if they do not.
+  let { error } = await sb.from("coupons").insert({ ...base, free_shipping: p.data.free_shipping, first_order_only: p.data.first_order_only });
+  if (error && /column|schema cache/i.test(error.message)) ({ error } = await sb.from("coupons").insert(base));
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/coupons");
+  return { ok: true };
+}
+
+export async function adminDeleteCoupon(id: string): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin();
+  const { error } = await supabaseService().from("coupons").delete().eq("id", z.string().uuid().parse(id));
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/coupons");
+  return { ok: true };
 }

@@ -22,7 +22,7 @@ export default function WhatsAppButton({
       href={cleanNumber ? url : "#"}
       target="_blank"
       rel="noopener noreferrer"
-      className={className || "inline-flex items-center gap-2 text-xs uppercase tracking-widest text-gold hover:text-white transition"}
+      className={className || "inline-flex items-center gap-2 text-xs uppercase tracking-widest text-gold hover:text-cream transition"}
     >
       <span>💬</span>
       <span>{label}</span>

@@ -51,7 +51,7 @@ export default function SizeSelector({
               className={`px-4 py-2 text-sm border font-sans transition-all flex flex-col items-center justify-center min-w-[90px] ${
                 isSelected
                   ? "border-gold bg-gold/10 text-gold font-bold shadow-md shadow-gold/10"
-                  : "border-white/10 bg-surface text-cream/70 hover:border-white/30 hover:text-white"
+                  : "border-white/10 bg-surface text-cream/70 hover:border-white/30 hover:text-cream"
               }`}
             >
               <span className="uppercase text-xs tracking-wider">{item.volume}</span>

@@ -8,57 +8,70 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://aura-perfume-weld.verc
 export const esc = (s: unknown) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 
-/** Sends via Brevo API; falls back to Resend or SMTP if configured. */
-export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
-  // 1. الدعم المباشر لـ Brevo API
-  const brevoKey = process.env.BREVO_API_KEY;
+export type EmailResult = { ok: boolean; provider?: string; error?: string };
+
+/**
+ * Sends one email and tells you exactly why it failed.
+ * Order: Brevo API -> Resend -> SMTP. Every failure is logged with the provider's real answer.
+ * Brevo needs BREVO_API_KEY and a sender that is VERIFIED in Brevo (BREVO_SENDER_EMAIL, defaults to OWNER_EMAIL).
+ */
+export async function sendEmailDetailed(to: string, subject: string, html: string): Promise<EmailResult> {
+  const errors: string[] = [];
+
+  const brevoKey = process.env.BREVO_API_KEY?.trim();
   if (brevoKey) {
+    const sender = (process.env.BREVO_SENDER_EMAIL || OWNER).trim();
     try {
       const res = await fetch("https://api.brevo.com/v3/smtp/email", {
         method: "POST",
-        headers: {
-          "accept": "application/json",
-          "api-key": brevoKey,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          sender: { name: "AURA Fragrances", email: OWNER },
-          to: [{ email: to }],
-          subject: subject,
-          htmlContent: html,
-        }),
+        headers: { accept: "application/json", "api-key": brevoKey, "content-type": "application/json" },
+        body: JSON.stringify({ sender: { name: "AURA Fragrances", email: sender }, to: [{ email: to }], subject, htmlContent: html }),
       });
-
-      if (res.ok) return true;
-      const errText = await res.text();
-      console.error("Brevo API Error:", errText);
+      if (res.ok) return { ok: true, provider: "brevo" };
+      const msg = `Brevo ${res.status}: ${(await res.text()).slice(0, 300)}`;
+      console.error("[email]", msg, "| sender:", sender);
+      errors.push(msg);
     } catch (e) {
-      console.error("Brevo API failed:", e);
+      const msg = `Brevo request failed: ${e instanceof Error ? e.message : String(e)}`;
+      console.error("[email]", msg);
+      errors.push(msg);
     }
+  } else {
+    errors.push("BREVO_API_KEY is not set in this environment");
   }
 
-  // 2. Fallback لـ Resend
   if (process.env.RESEND_API_KEY) {
     try {
       const { error } = await new Resend(process.env.RESEND_API_KEY).emails.send({ from: FROM, to, subject, html });
-      if (!error) return true;
-      console.error("Resend error", error);
-    } catch (e) { console.error("Resend failed", e); }
+      if (!error) return { ok: true, provider: "resend" };
+      errors.push(`Resend: ${JSON.stringify(error)}`);
+      console.error("[email] Resend error", error);
+    } catch (e) {
+      errors.push(`Resend failed: ${e instanceof Error ? e.message : String(e)}`);
+      console.error("[email] Resend failed", e);
+    }
   }
 
-  // 3. Fallback لـ SMTP
   if (process.env.SMTP_HOST) {
     try {
       const t = nodemailer.createTransport({
-        host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT ?? 587),
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT ?? 587),
         auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
       });
       await t.sendMail({ from: FROM, to, subject, html });
-      return true;
-    } catch (e) { console.error("SMTP failed", e); }
+      return { ok: true, provider: "smtp" };
+    } catch (e) {
+      errors.push(`SMTP failed: ${e instanceof Error ? e.message : String(e)}`);
+      console.error("[email] SMTP failed", e);
+    }
   }
 
-  return false;
+  return { ok: false, error: errors.join(" | ") };
+}
+
+export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+  return (await sendEmailDetailed(to, subject, html)).ok;
 }
 
 const wrap = (inner: string) => `<div style="background:#0B0B0D;padding:32px;font-family:Arial,sans-serif;color:#F5F1E8">

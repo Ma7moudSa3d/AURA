@@ -63,29 +63,29 @@ export default function Header({ loggedIn, whatsapp }: { loggedIn?: boolean; wha
 
   const handleLanguageToggle = () => {
     const nextLocale = locale === "ar" ? "en" : "ar";
-    document.cookie = `NEXT_LOCALE=${nextLocale}; path=/; max-age=31536000`;
+    document.cookie = `locale=${nextLocale}; path=/; max-age=31536000; samesite=lax`;
     window.location.reload();
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-black/80 backdrop-blur-md">
+    <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-ink/80 backdrop-blur-md">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
-          <span className="h-display text-3xl tracking-tighter text-white transition-colors group-hover:text-amber-500">
+          <span className="h-display text-3xl tracking-tighter text-cream transition-colors group-hover:text-gold">
             AURA
           </span>
         </Link>
 
         {/* Desktop Nav */}
         <nav className="hidden md:flex items-center gap-8">
-          <Link href="/shop" className="text-sm font-medium text-neutral-400 hover:text-white transition-colors">
+          <Link href="/shop" className="text-sm font-medium text-cream/60 hover:text-cream transition-colors">
             {t("shop")}
           </Link>
-          <Link href="/about" className="text-sm font-medium text-neutral-400 hover:text-white transition-colors">
+          <Link href="/about" className="text-sm font-medium text-cream/60 hover:text-cream transition-colors">
             {t("about")}
           </Link>
-          <Link href="/contact" className="text-sm font-medium text-neutral-400 hover:text-white transition-colors">
+          <Link href="/contact" className="text-sm font-medium text-cream/60 hover:text-cream transition-colors">
             {t("contact")}
           </Link>
         </nav>
@@ -96,21 +96,21 @@ export default function Header({ loggedIn, whatsapp }: { loggedIn?: boolean; wha
           <button
             onClick={handleLanguageToggle}
             type="button"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold text-neutral-300 hover:bg-white/10 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold text-cream/70 hover:bg-white/10 transition-colors"
           >
-            <IconGlobe className="w-3.5 h-3.5 text-amber-400" />
+            <IconGlobe className="w-3.5 h-3.5 text-gold" />
             <span>{locale === "ar" ? "EN" : "العربية"}</span>
           </button>
 
           {/* Cart Toggle Button */}
           <button
             onClick={() => setOpen(true)}
-            className="relative p-2 text-neutral-400 hover:text-white transition-colors"
+            className="relative p-2 text-cream/60 hover:text-cream transition-colors"
             aria-label="Shopping Cart"
           >
             <IconShoppingBag className="h-6 w-6" />
             {mounted && totalQty > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-black ring-2 ring-black">
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-gold text-[10px] font-bold text-ink ring-2 ring-ink">
                 {totalQty}
               </span>
             )}
@@ -120,11 +120,11 @@ export default function Header({ loggedIn, whatsapp }: { loggedIn?: boolean; wha
           <div className="hidden sm:block border-l border-white/10 h-6 mx-1" />
 
           {loggedIn ? (
-            <Link href="/profile" className="hidden sm:flex items-center gap-2 p-2 text-neutral-400 hover:text-white transition-colors">
+            <Link href="/profile" className="hidden sm:flex items-center gap-2 p-2 text-cream/60 hover:text-cream transition-colors">
               <IconUser className="h-6 w-6" />
             </Link>
           ) : (
-            <Link href="/login" className="hidden sm:block text-xs font-bold tracking-widest uppercase text-amber-500 hover:text-amber-400 transition-colors">
+            <Link href="/login" className="hidden sm:block text-xs font-bold tracking-widest uppercase text-gold hover:text-gold transition-colors">
               {t("login")}
             </Link>
           )}
@@ -132,7 +132,7 @@ export default function Header({ loggedIn, whatsapp }: { loggedIn?: boolean; wha
           {/* Mobile Menu Toggle */}
           <button
             onClick={() => setMenu(!menu)}
-            className="p-2 text-neutral-400 hover:text-white md:hidden transition-colors"
+            className="p-2 text-cream/60 hover:text-cream md:hidden transition-colors"
             aria-label="Toggle Navigation Menu"
           >
             {menu ? <IconX className="h-6 w-6" /> : <IconMenu className="h-6 w-6" />}
@@ -142,16 +142,16 @@ export default function Header({ loggedIn, whatsapp }: { loggedIn?: boolean; wha
 
       {/* Mobile Menu Overlay */}
       {menu && (
-        <div className="fixed inset-0 top-20 z-40 bg-black/95 md:hidden animate-in fade-in slide-in-from-top-5">
+        <div className="fixed inset-0 top-20 z-40 bg-ink/95 md:hidden animate-in fade-in slide-in-from-top-5">
           <nav className="flex flex-col items-center justify-center gap-8 h-full pb-20">
             <Link href="/shop" onClick={() => setMenu(false)} className="text-2xl font-medium">{t("shop")}</Link>
             <Link href="/about" onClick={() => setMenu(false)} className="text-2xl font-medium">{t("about")}</Link>
             <Link href="/contact" onClick={() => setMenu(false)} className="text-2xl font-medium">{t("contact")}</Link>
             <div className="w-12 h-px bg-white/10 my-2" />
             {loggedIn ? (
-              <Link href="/profile" onClick={() => setMenu(false)} className="text-xl text-amber-500">{t("profile")}</Link>
+              <Link href="/profile" onClick={() => setMenu(false)} className="text-xl text-gold">{t("profile")}</Link>
             ) : (
-              <Link href="/login" onClick={() => setMenu(false)} className="text-xl text-amber-500 uppercase tracking-widest">{t("login")}</Link>
+              <Link href="/login" onClick={() => setMenu(false)} className="text-xl text-gold uppercase tracking-widest">{t("login")}</Link>
             )}
           </nav>
         </div>

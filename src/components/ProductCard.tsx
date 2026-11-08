@@ -2,7 +2,8 @@
 
 import React from "react";
 import Link from "next/link";
-import { useCart } from "@/lib/cart";
+import { useCart, useCartStore } from "@/lib/cart";
+import { resolveVariants, pickVariant, minPrice, DEFAULT_VOLUME } from "@/lib/variants";
 import { getCleanImageUrl, DEFAULT_PLACEHOLDER } from "@/lib/image-utils";
 
 export interface ProductCardProps {
@@ -14,20 +15,22 @@ export interface ProductCardProps {
 const ProductCard: React.FC<ProductCardProps> = (props) => {
   const item = props.product || props.p;
   const { addItem } = useCart();
+  const [added, setAdded] = React.useState(false);
 
   if (!item) return null;
 
   const name = item.title_en || item.title_ar || item.name || "AURA Fragrance";
-  const basePrice = Number(item.discount_price || item.price || 0);
+  const basePrice = minPrice(item);
+  const defaultVariant = pickVariant(item, DEFAULT_VOLUME);
   const productLink = `/product/${item.slug || item.id}`;
 
   const imageUrl = getCleanImageUrl(item);
-  const defaultVolumes = ["5ML", "30ML", "50ML", "100ML"];
+  const defaultVolumes = resolveVariants(item).map((v) => v.volume);
 
   return (
-    <div className="group relative flex flex-col bg-[#0A0A0A] border border-zinc-800 rounded-lg overflow-hidden transition-all duration-300 hover:border-[#C5A059]/50 h-full">
+    <div className="group relative flex flex-col bg-ink border border-white/10 rounded-lg overflow-hidden transition-all duration-300 hover:border-gold/50 h-full">
       {/* صورة العطر */}
-      <Link href={productLink} className="relative block h-80 w-full shrink-0 overflow-hidden bg-zinc-900">
+      <Link href={productLink} className="relative block h-80 w-full shrink-0 overflow-hidden bg-surface">
         <img
           src={imageUrl}
           alt={name}
@@ -39,7 +42,7 @@ const ProductCard: React.FC<ProductCardProps> = (props) => {
         />
 
         {item.is_featured && (
-          <div className="absolute top-3 left-3 bg-[#C5A059] text-black text-[10px] font-bold px-2 py-1 rounded-sm uppercase tracking-widest shadow-lg">
+          <div className="absolute top-3 left-3 bg-gold text-ink text-[10px] font-bold px-2 py-1 rounded-sm uppercase tracking-widest shadow-lg">
             Featured
           </div>
         )}
@@ -52,7 +55,7 @@ const ProductCard: React.FC<ProductCardProps> = (props) => {
           {defaultVolumes.map((vol) => (
             <span
               key={vol}
-              className="text-[9px] font-medium px-2 py-0.5 bg-zinc-800 text-zinc-400 border border-zinc-700 rounded-full"
+              className="text-[9px] font-medium px-2 py-0.5 bg-surface2 text-cream/60 border border-white/15 rounded-full"
             >
               {vol}
             </span>
@@ -61,14 +64,14 @@ const ProductCard: React.FC<ProductCardProps> = (props) => {
 
         {/* اسم العطر */}
         <Link href={productLink}>
-          <h3 className="text-white font-medium text-sm mb-1 group-hover:text-[#C5A059] transition-colors line-clamp-2 min-h-[2.5rem] uppercase tracking-wider">
+          <h3 className="text-cream font-medium text-sm mb-1 group-hover:text-gold transition-colors line-clamp-2 min-h-[2.5rem] uppercase tracking-wider">
             {name}
           </h3>
         </Link>
 
         {/* السعر */}
-        <p className="text-[#D4AF37] font-bold text-sm mt-auto pt-2">
-          <span className="text-zinc-500 text-[10px] font-normal mr-1 uppercase tracking-tighter">
+        <p className="text-gold font-bold text-sm mt-auto pt-2">
+          <span className="text-cream/50 text-[10px] font-normal mr-1 uppercase tracking-tighter">
             From
           </span>
           {basePrice} EGP
@@ -79,19 +82,24 @@ const ProductCard: React.FC<ProductCardProps> = (props) => {
           type="button"
           onClick={() => {
             addItem({
-              id: `${item.id}-50ml`,
+              id: `${item.id}-${defaultVariant.volume}`,
               product_id: item.id,
               variant_id: null,
               name,
-              price: basePrice,
-              volume: item.volume || "50ML",
+              price: defaultVariant.price,
+              volume: defaultVariant.volume,
               image_url: imageUrl,
               quantity: 1,
             });
+            setAdded(true);
+            setTimeout(() => setAdded(false), 1800);
+            useCartStore.getState().setOpen(true);
           }}
-          className="mt-4 w-full py-2 bg-transparent border border-[#C5A059] text-[#C5A059] text-xs font-bold rounded-sm hover:bg-[#C5A059] hover:text-black transition-all duration-300 uppercase tracking-widest"
+          className={`mt-4 w-full py-2 border border-gold text-xs font-bold rounded-sm transition-all duration-300 uppercase tracking-widest ${
+            added ? "bg-gold text-ink" : "bg-transparent text-gold hover:bg-gold hover:text-ink"
+          }`}
         >
-          Add to Cart
+          {added ? "✓ Added" : "Add to Cart"}
         </button>
       </div>
     </div>

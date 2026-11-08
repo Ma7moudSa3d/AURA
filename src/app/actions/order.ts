@@ -1,332 +1,254 @@
 "use server";
 
-import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/server";
 import { getUser } from "@/lib/data";
+import { sendEmailDetailed, orderEmailHtml, OWNER, type OrderEmailData } from "@/lib/email";
+import { normVolume, pickVariant } from "@/lib/variants";
+import { couponDiscount, couponProblem } from "@/lib/coupon";
 
-// ──────────────────────────────────────────────
-// Helper: Send order notification email via Brevo API
-// ──────────────────────────────────────────────
-async function sendOrderEmail({
-  orderId,
-  customerName,
-  phone,
-  total,
-  address,
-  city,
-  paymentMethod,
-}: {
-  orderId: string;
-  customerName: string;
-  phone: string;
-  total: number;
-  address: string;
-  city: string;
-  paymentMethod: string;
-}) {
-  const apiKey = process.env.BREVO_API_KEY;
-  if (!apiKey) {
-    console.error("❌ BREVO_API_KEY is missing in Vercel!");
-    return;
-  }
+type Fail = { ok: false; error: string };
+const fail = (error: string): Fail => ({ ok: false, error });
 
-  try {
-    const res = await fetch("https://api.brevo.com/v3/smtp/email", {
-      method: "POST",
-      headers: {
-        accept: "application/json",
-        "api-key": apiKey,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        sender: { name: "AURA Store", email: "aurafragrances111@gmail.com" },
-        to: [{ email: "aurafragrances111@gmail.com", name: "AURA Admin" }],
-        subject: `🚨 طلب جديد في AURA (${paymentMethod}) – ${total} EGP (#${orderId.slice(0, 8)})`,
-        htmlContent: `
-          <div style="font-family:sans-serif;padding:24px;background:#0a0a0a;color:#D6B25E;max-width:560px;margin:0 auto;border:1px solid #222;">
-            <h2 style="margin:0 0 16px;font-size:22px;">✨ وصلك طلب جديد في AURA!</h2>
-            <p style="color:#fff;"><strong>رقم الطلب:</strong> ${orderId}</p>
-            <p style="color:#fff;"><strong>اسم العميل:</strong> ${customerName}</p>
-            <p style="color:#fff;"><strong>الهاتف:</strong> ${phone}</p>
-            <p style="color:#fff;"><strong>العنوان:</strong> ${address}, ${city}</p>
-            <p style="color:#fff;"><strong>طريقة الدفع:</strong> ${paymentMethod}</p>
-            <p style="color:#fff;"><strong>الإجمالي:</strong> ${total} EGP</p>
-            <hr style="border:none;border-top:1px solid #333;margin:20px 0;"/>
-            <p style="margin:0;"><a href="https://aura-perfume-weld.vercel.app/admin/orders" style="color:#D6B25E;text-decoration:none;font-weight:bold;">اضغط هنا لمعاينة الطلب في لوحة التحكم ←</a></p>
-          </div>
-        `,
-      }),
-    });
+const PAYMENT_METHODS = ["COD", "INSTAPAY", "DEPOSIT"] as const;
+type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
-    const resData = await res.json();
-    if (!res.ok) {
-      console.error("❌ Brevo Email Failed:", resData);
-    } else {
-      console.log("✅ Brevo Email Sent Successfully!", resData);
-    }
-  } catch (err) {
-    console.error("❌ Error sending order email:", err);
-  }
-}
-
-// ──────────────────────────────────────────────
-// Action: Validate Coupon Live before Checkout
-// ──────────────────────────────────────────────
-export async function validateCouponAction(code: string, subtotal: number) {
-  if (!code || !code.trim()) {
-    return { ok: false as const, error: "كود الكوبون فارغ" };
-  }
-
-  const user = await getUser();
-  if (!user) {
-    return { ok: false as const, error: "يرجى تسجيل الدخول أولاً" };
-  }
-
-  const sb = supabaseServer();
-  const cleanCode = code.trim().toUpperCase();
-
-  const { data: coupon, error } = await sb
-    .from("coupons")
-    .select("*")
-    .ilike("code", cleanCode)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (error || !coupon) {
-    return { ok: false as const, error: "كود الكوبون غير صحيح أو غير مفعّل" };
-  }
-
-  if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
-    return { ok: false as const, error: "هذا الكوبون منتهي الصلاحية" };
-  }
-
-  if (coupon.max_uses && (coupon.used_count ?? 0) >= coupon.max_uses) {
-    return { ok: false as const, error: "تم استنفاد الحد الأقصى لاستخدام هذا الكوبون" };
-  }
-
-  if (coupon.first_order_only) {
-    const { count, error: countErr } = await sb
-      .from("orders")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id);
-
-    if (!countErr && count && count > 0) {
-      return { ok: false as const, error: "هذا الكوبون مخصص للطلب الأول فقط" };
-    }
-  }
-
-  let discount = 0;
-  const numVal = Number(coupon.value ?? 0);
-  const percent = Number(coupon.discount_percent ?? (coupon.type === "percent" ? numVal : 0));
-  const amount = Number(coupon.discount_amount ?? (coupon.type === "fixed" ? numVal : 0));
-
-  if (percent > 0) {
-    discount = (subtotal * percent) / 100;
-  } else if (amount > 0) {
-    discount = amount;
-  }
-
-  return {
-    ok: true as const,
-    code: coupon.code,
-    discount: Math.round(discount * 100) / 100,
-    freeShipping: Boolean(coupon.free_shipping),
-    firstOrderOnly: Boolean(coupon.first_order_only),
-  };
-}
-
-// ──────────────────────────────────────────────
-// Main Server Action: createOrder
-// ──────────────────────────────────────────────
-export async function createOrder(formData: FormData) {
+/**
+ * Creates an order.
+ * Everything that costs money is recomputed here from the database; the browser's totals are ignored.
+ * Field names match CheckoutForm: full_name, phone, governorate, address_details, payment_method,
+ * items (JSON [{product_id, volume, quantity}]), coupon_code, proof (file).
+ */
+export async function createOrder(formData: FormData): Promise<{ ok: true; orderId: string } | Fail> {
   try {
     const user = await getUser();
-    if (!user) return { ok: false as const, error: "AUTH_REQUIRED" };
+    if (!user) return fail("يرجى تسجيل الدخول أولاً / Please sign in first");
 
-    const customer_name = (formData.get("customer_name") as string)?.trim() ?? "";
-    const customer_phone = (formData.get("customer_phone") as string)?.trim() ?? "";
-    const address_line1 = (formData.get("address_line1") as string)?.trim() ?? "";
-    const address_line2 = (formData.get("address_line2") as string)?.trim() || null;
-    const city = (formData.get("city") as string)?.trim() ?? "";
-    const notes = (formData.get("notes") as string)?.trim() || null;
-    const payment_method = (formData.get("payment_method") as string)?.trim() || "INSTAPAY";
-    const transaction_reference_id =
-      (formData.get("transaction_reference_id") as string)?.trim() || null;
+    const text = (k: string, max = 300) => String(formData.get(k) ?? "").trim().slice(0, max);
 
-    const couponRaw = (formData.get("coupon") as string)?.trim() || "";
-    const itemsRaw = formData.get("items") as string;
-    const file = formData.get("payment_proof") as File | null;
+    const customer_name = text("full_name", 100);
+    const customer_phone = text("phone", 20);
+    const city = text("governorate", 100);
+    const address_line1 = text("address_details", 300);
+    const notes = text("notes", 500) || null;
+    const couponCode = text("coupon_code", 40).toUpperCase();
+    const methodRaw = text("payment_method", 20).toUpperCase();
+    const payment_method: PaymentMethod = (PAYMENT_METHODS as readonly string[]).includes(methodRaw)
+      ? (methodRaw as PaymentMethod)
+      : "INSTAPAY";
 
-    // FIX: Only require proof if payment method is NOT COD
-    if (payment_method !== "COD" && !transaction_reference_id && (!file || file.size === 0)) {
-      return { ok: false as const, error: "PROOF_REQUIRED" };
+    if (customer_name.length < 2 || customer_phone.length < 8 || !city || address_line1.length < 5) {
+      return fail("يرجى إكمال بيانات الشحن / Please complete the shipping details");
     }
 
-    let items: { product_id: string; qty: number }[] = [];
+    const file = formData.get("proof");
+    const proof = file instanceof File && file.size > 0 ? file : null;
+    if (payment_method !== "COD" && !proof) return fail("يرجى إرفاق إيصال التحويل / Please upload the transfer receipt");
+    if (proof && (proof.size > 5 * 1024 * 1024 || !proof.type.startsWith("image/"))) {
+      return fail("الإيصال لازم يكون صورة أقل من 5MB / Receipt must be an image under 5MB");
+    }
+
+    // ── Items ─────────────────────────────────────────────
+    let rawItems: any[] = [];
     try {
-      items = JSON.parse(itemsRaw || "[]");
+      rawItems = JSON.parse(String(formData.get("items") ?? "[]"));
     } catch {
-      return { ok: false as const, error: "INVALID_ITEMS" };
+      return fail("بيانات السلة غير صالحة / Invalid cart");
     }
-    if (!Array.isArray(items) || items.length === 0) {
-      return { ok: false as const, error: "EMPTY_CART" };
-    }
+    if (!Array.isArray(rawItems) || rawItems.length === 0) return fail("السلة فارغة / Cart is empty");
+    if (rawItems.length > 30) return fail("عدد المنتجات كبير / Too many items");
 
-    const sb = supabaseServer();
+    const wanted = rawItems.map((i) => ({
+      product_id: String(i?.product_id ?? ""),
+      volume: normVolume(i?.volume),
+      qty: Math.min(20, Math.max(1, Math.floor(Number(i?.quantity ?? i?.qty ?? 1)) || 1)),
+    }));
 
-    const productIds = items.map((i) => i.product_id);
+    const sb = supabaseService();
+    const ids = Array.from(new Set(wanted.map((w) => w.product_id)));
     const { data: products, error: prodErr } = await sb
       .from("products")
-      .select("id, title_en, price, discount_price, stock_qty")
-      .in("id", productIds);
+      .select("*")
+      .in("id", ids);
+    if (prodErr || !products?.length) {
+      console.error("[order] products lookup failed", prodErr);
+      return fail("تعذر تحميل المنتجات / Could not load products");
+    }
+    const byId = new Map(products.map((p: any) => [p.id, p]));
 
-    if (prodErr || !products || products.length === 0) {
-      return { ok: false as const, error: "INVALID_PRODUCTS" };
+    // stock check per product (all sizes of one product share the same stock)
+    const perProduct = new Map<string, number>();
+    for (const w of wanted) perProduct.set(w.product_id, (perProduct.get(w.product_id) ?? 0) + w.qty);
+    for (const [pid, qty] of perProduct) {
+      const p: any = byId.get(pid);
+      if (!p || p.is_active === false) return fail("أحد المنتجات غير متاح / A product is no longer available");
+      if (Number(p.stock_qty) < qty) return fail(`الكمية المتاحة من ${p.title_en} غير كافية / Not enough stock for ${p.title_en}`);
     }
 
-    const productMap = new Map(products.map((p) => [p.id, p]));
     let subtotal = 0;
-    const orderItemsData: { product_id: string; title: string; qty: number; price: number }[] = [];
+    const lines = wanted.map((w) => {
+      const p: any = byId.get(w.product_id);
+      const variant = pickVariant(p, w.volume);
+      const unit = variant.price;
+      const line_total = unit * w.qty;
+      subtotal += line_total;
+      return {
+        product_id: w.product_id,
+        product_title_snapshot: `${p.title_en} (${variant.volume})`,
+        unit_price_snapshot: unit,
+        discount_snapshot: 0,
+        qty: w.qty,
+        line_total,
+      };
+    });
 
-    for (const item of items) {
-      const prod = productMap.get(item.product_id);
-      if (!prod) continue;
-
-      const unitPrice = Number(prod.discount_price ?? prod.price) || 0;
-      subtotal += unitPrice * item.qty;
-      orderItemsData.push({
-        product_id: item.product_id,
-        title: prod.title_en ?? "AURA Perfume",
-        qty: item.qty,
-        price: unitPrice,
-      });
+    // ── Coupon + shipping ─────────────────────────────────
+    let discount = 0;
+    let freeShip = false;
+    let appliedCode: string | null = null;
+    let couponRow: any = null;
+    if (couponCode) {
+      const { data: c } = await sb.from("coupons").select("*").ilike("code", couponCode).eq("is_active", true).maybeSingle();
+      if (!c) return fail("كود الخصم غير صالح / Invalid coupon");
+      const problem = couponProblem(c, subtotal);
+      if (problem) return fail(problem);
+      if (c.first_order_only) {
+        const { count } = await sb.from("orders").select("id", { count: "exact", head: true }).eq("user_id", user.id);
+        if (count && count > 0) return fail("الكود للطلب الأول فقط / Coupon is for the first order only");
+      }
+      couponRow = c;
+      discount = couponDiscount(c, subtotal);
+      freeShip = Boolean(c.free_shipping);
+      appliedCode = c.code;
     }
 
-    if (orderItemsData.length === 0) {
-      return { ok: false as const, error: "INVALID_PRODUCTS" };
-    }
-
-    const { data: settings } = await sb
-      .from("settings")
-      .select("shipping_fee, free_shipping_threshold")
-      .eq("id", 1)
-      .maybeSingle();
-
+    const { data: settings } = await sb.from("settings").select("shipping_fee, free_shipping_threshold").eq("id", 1).maybeSingle();
     const shippingFee = Number(settings?.shipping_fee ?? 60);
     const freeThreshold = Number(settings?.free_shipping_threshold ?? 2000);
-    let shipCost = subtotal >= freeThreshold ? 0 : shippingFee;
+    const net = Math.max(0, subtotal - discount);
+    const shipping_fee = freeShip || net >= freeThreshold ? 0 : shippingFee;
+    const total = Math.round((net + shipping_fee) * 100) / 100;
 
-    // Coupon Validation
-    let discount = 0;
-    let couponCode: string | null = null;
-
-    if (couponRaw.length > 0) {
-      const couponRes = await validateCouponAction(couponRaw, subtotal);
-      if (!couponRes.ok) {
-        return { ok: false as const, error: couponRes.error };
-      }
-      couponCode = couponRes.code;
-      discount = couponRes.discount;
-      if (couponRes.freeShipping) {
-        shipCost = 0;
-      }
-    }
-
-    // Upload payment proof if provided
+    // ── Payment proof (private bucket, path = <user_id>/<file>) ──
     let payment_proof_path: string | null = null;
-    let payment_proof_url: string | null = null;
-
-    if (file && file.size > 0) {
-      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-      const fileName = `proof_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-      const buffer = Buffer.from(await file.arrayBuffer());
-
-      const { data: uploadData, error: uploadErr } = await sb.storage
+    if (proof) {
+      const ext = (proof.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "jpg";
+      const path = `${user.id}/proof_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error: upErr } = await sb.storage
         .from("payment-proofs")
-        .upload(fileName, buffer, {
-          contentType: file.type || "image/jpeg",
-          upsert: false,
-        });
-
-      if (!uploadErr && uploadData) {
-        payment_proof_path = uploadData.path;
-        payment_proof_url = `https://qjwisnczaffrouaadqzg.supabase.co/storage/v1/object/public/payment-proofs/${fileName}`;
+        .upload(path, Buffer.from(await proof.arrayBuffer()), { contentType: proof.type || "image/jpeg", upsert: false });
+      if (upErr) {
+        console.error("[order] proof upload failed", upErr);
+        return fail("تعذر رفع الإيصال، حاول مرة أخرى / Could not upload the receipt, please try again");
       }
+      payment_proof_path = path;
     }
 
-    const total = Math.max(0, Math.round((subtotal + shipCost - discount) * 100) / 100);
+    // DB constraint requires a proof OR a reference; cash orders carry a marker.
+    const transaction_reference_id = payment_proof_path ? null : "COD";
 
-    // Insert Order
-    const { data: newOrder, error: orderErr } = await sb
+    let orderNotes = notes;
+    if (payment_method === "DEPOSIT") {
+      const dep = Math.round(total * 0.25);
+      const line = `Deposit 25%: ${dep} EGP paid, ${total - dep} EGP due on delivery`;
+      orderNotes = orderNotes ? `${orderNotes}\n${line}` : line;
+    }
+
+    // ── Insert order + items ──────────────────────────────
+    const { data: order, error: orderErr } = await sb
       .from("orders")
       .insert({
         user_id: user.id,
-        status: payment_method === "COD" ? "pending" : "pending",
-        payment_method,
         subtotal,
-        shipping_fee: shipCost,
-        discount,
         discount_total: discount,
+        coupon_code: appliedCode,
+        shipping_fee,
         total,
-        coupon_code: couponCode,
         customer_name,
-        customer_email: user.email ?? "aurafragrances111@gmail.com",
+        customer_email: user.email ?? OWNER,
         customer_phone,
         address_line1,
-        address_line2,
         city,
-        notes,
+        notes: orderNotes,
+        payment_method,
         transaction_reference_id,
         payment_proof_path,
-        payment_proof_url,
+        stock_deducted: true,
       })
-      .select("id")
+      .select("id, created_at")
       .single();
 
-    if (orderErr || !newOrder) {
-      console.error("Order insert error:", orderErr);
-      return { ok: false as const, error: orderErr?.message || "CREATE_FAILED" };
+    if (orderErr || !order) {
+      console.error("[order] insert failed", orderErr);
+      return fail(`تعذر إنشاء الطلب / Could not create order${orderErr?.message ? `: ${orderErr.message}` : ""}`);
     }
 
-    // Update coupon usage count
-    if (couponCode) {
-      try {
-        const { error: rpcError } = await sb.rpc("increment_coupon_used", { coupon_code: couponCode });
-        if (rpcError) {
-          await sb.from("coupons").update({ used_count: 1 }).eq("code", couponCode);
-        }
-      } catch (err) {
-        console.error("RPC failed, falling back to update:", err);
-        await sb.from("coupons").update({ used_count: 1 }).eq("code", couponCode);
+    const { error: itemsErr } = await sb.from("order_items").insert(lines.map((l) => ({ ...l, order_id: order.id })));
+    if (itemsErr) {
+      console.error("[order] items insert failed", itemsErr);
+      await sb.from("orders").delete().eq("id", order.id);
+      return fail(`تعذر حفظ عناصر الطلب / Could not save order items: ${itemsErr.message}`);
+    }
+
+    // stock + coupon usage (best effort; the order itself is already safe)
+    for (const [pid, qty] of perProduct) {
+      const cur = Number((byId.get(pid) as any).stock_qty);
+      await sb.from("products").update({ stock_qty: Math.max(0, cur - qty) }).eq("id", pid).eq("stock_qty", cur);
+    }
+    if (couponRow) {
+      await sb.from("coupons").update({ used_count: Number(couponRow.used_count ?? 0) + 1 }).eq("id", couponRow.id);
+    }
+    await sb.from("order_events").insert({ order_id: order.id, event_type: "CREATED", message: "Order placed, pending payment verification" });
+    await sb.from("cart_items").delete().in("cart_id", (await sb.from("carts").select("id").eq("user_id", user.id)).data?.map((c: any) => c.id) ?? []);
+
+    // ── Emails: never block or fail the order ─────────────
+    try {
+      let proof_url: string | null = null;
+      if (payment_proof_path) {
+        const { data: signed } = await sb.storage.from("payment-proofs").createSignedUrl(payment_proof_path, 7 * 24 * 3600);
+        proof_url = signed?.signedUrl ?? null;
       }
+      const data: OrderEmailData = {
+        id: order.id,
+        created_at: order.created_at,
+        customer_name,
+        customer_email: user.email ?? "",
+        customer_phone,
+        address_line1,
+        address_line2: null,
+        city,
+        notes: orderNotes,
+        subtotal,
+        discount_total: discount,
+        shipping_fee,
+        total,
+        payment_method,
+        transaction_reference_id,
+        proof_url,
+        items: lines.map((l) => ({
+          product_title_snapshot: l.product_title_snapshot,
+          qty: l.qty,
+          unit_price_snapshot: l.unit_price_snapshot,
+          discount_snapshot: l.discount_snapshot,
+          line_total: l.line_total,
+        })),
+      };
+      const short = order.id.slice(0, 8).toUpperCase();
+      const results = await Promise.all([
+        sendEmailDetailed(OWNER, `New AURA order #${short} (${payment_method}) - ${total} EGP`, orderEmailHtml(data, true)),
+        user.email
+          ? sendEmailDetailed(user.email, `Your AURA order #${short}`, orderEmailHtml(data, false))
+          : Promise.resolve({ ok: false, error: "customer has no email" }),
+      ]);
+      results.forEach((r, i) => {
+        if (!r.ok) console.error(`[order] ${i === 0 ? "owner" : "customer"} email NOT sent for #${short}:`, r.error);
+      });
+    } catch (e) {
+      console.error("[order] email step crashed", e);
     }
 
-    // Insert Order Items
-    const itemsToInsert = orderItemsData.map((item) => ({
-      order_id: newOrder.id,
-      product_id: item.product_id,
-      qty: item.qty,
-      price: item.price,
-      product_title_snapshot: item.title,
-      line_total: item.price * item.qty,
-    }));
-
-    await sb.from("order_items").insert(itemsToInsert);
-
-    // Send Email
-    await sendOrderEmail({
-      orderId: newOrder.id,
-      customerName: customer_name,
-      phone: customer_phone,
-      total,
-      address: address_line1,
-      city,
-      paymentMethod: payment_method,
-    });
-
-    return { ok: true as const, orderId: newOrder.id };
-  } catch (err: unknown) {
-    console.error("createOrder unexpected error:", err);
-    const message = err instanceof Error ? err.message : "SERVER_ERROR";
-    return { ok: false as const, error: message };
+    return { ok: true, orderId: order.id };
+  } catch (err) {
+    console.error("[order] unexpected error", err);
+    return fail(err instanceof Error ? err.message : "SERVER_ERROR");
   }
 }
