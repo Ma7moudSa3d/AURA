@@ -40,6 +40,10 @@ export default async function Orders({ searchParams }: { searchParams: SP }) {
         <button className="btn-gold sm:col-span-4">Filter</button>
         <a href="/api/admin/orders-csv" className="btn-ghost">Export CSV</a>
       </form>
+      <p className="mb-3 text-xs uppercase tracking-widest text-cream/50">
+        {(data ?? []).length} order(s) · {(data ?? []).filter((o) => !["CANCELED", "REFUNDED"].includes(norm(o.status))).reduce((a, o) => a + Number(o.total), 0)} EGP (excluding canceled/refunded)
+      </p>
+      {(data ?? []).length === 0 && <p className="mb-3 text-sm text-cream/50">No orders match these filters.</p>}
       <div className="overflow-x-auto border border-white/5 bg-surface">
         <table className="tbl w-full text-sm"><thead className="text-left text-xs uppercase tracking-widest text-cream/50"><tr><th className="p-3">Order</th><th>Date</th><th>Customer</th><th>Status</th><th>Total</th></tr></thead>
           <tbody>{(data ?? []).map((o) => (

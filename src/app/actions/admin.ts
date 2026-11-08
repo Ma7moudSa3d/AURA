@@ -4,7 +4,7 @@ import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin";
 import { supabaseServer, supabaseService } from "@/lib/supabase/server";
-import { sendEmail, lowStockHtml, OWNER } from "@/lib/email";
+import { sendEmail, sendEmailDetailed, lowStockHtml, OWNER } from "@/lib/email";
 import { sendAbandonedReminders } from "@/lib/abandoned";
 import { ORDER_STATUSES } from "@/lib/types";
 
@@ -18,7 +18,39 @@ export async function updateOrderStatus(orderId: string, status: string, adminNo
   if (error) throw new Error("update failed");
   await sb.from("order_events").insert({ order_id: p.id, event_type: "STATUS", message: `${before?.status} -> ${p.status}` });
 
-  if (p.status === "CANCELED" || p.status === "REFUNDED") await sb.rpc("restore_stock", { p_order: p.id });
+  // Stock follows the order: cancelling/refunding puts the units back, re-opening takes them out again.
+  const DEAD = ["CANCELED", "CANCELLED", "REFUNDED"];
+  const wasDead = DEAD.includes(String(before?.status ?? "").toUpperCase());
+  const isDead = DEAD.includes(p.status);
+  if (wasDead !== isDead) {
+    const svc = supabaseService();
+    const { data: lines } = await svc.from("order_items").select("product_id, qty").eq("order_id", p.id);
+    const perProduct = new Map<string, number>();
+    for (const l of lines ?? []) if (l.product_id) perProduct.set(l.product_id, (perProduct.get(l.product_id) ?? 0) + Number(l.qty));
+    for (const [pid, qty] of perProduct) {
+      const { data: pr } = await svc.from("products").select("stock_qty").eq("id", pid).maybeSingle();
+      if (pr) await svc.from("products").update({ stock_qty: Math.max(0, Number(pr.stock_qty) + (isDead ? qty : -qty)) }).eq("id", pid);
+    }
+  }
+
+  // Tell the customer when their order moves forward (never blocks the update).
+  const customerMsg: Record<string, string> = {
+    CONFIRMED: "Your order is confirmed and being prepared.",
+    PAID: "We have verified your payment. Thank you!",
+    SHIPPED: "Your order is on its way to you.",
+    DELIVERED: "Your order has been delivered. We hope you love it!",
+    CANCELED: "Your order was cancelled. Contact us if you have any questions.",
+  };
+  if (customerMsg[p.status] && before?.status !== p.status) {
+    try {
+      const { data: o } = await supabaseService().from("orders").select("customer_email").eq("id", p.id).maybeSingle();
+      if (o?.customer_email) {
+        const short = p.id.slice(0, 8).toUpperCase();
+        await sendEmailDetailed(o.customer_email, `AURA order #${short}: ${p.status.replace(/_/g, " ").toLowerCase()}`,
+          `<div style="font-family:Arial,sans-serif;background:#0B0B0D;color:#F5F1E8;padding:24px"><h2 style="color:#D6B25E;letter-spacing:3px">AURA</h2><p>${customerMsg[p.status]}</p><p style="color:#D6B25E">Order #${short}</p></div>`);
+      }
+    } catch (e) { console.error("[admin] status email failed", e); }
+  }
 
   if (p.status === "PAID" || p.status === "CONFIRMED") {
     const { data: items } = await sb.from("order_items").select("products(title_en, stock_qty, low_stock_threshold)").eq("order_id", p.id);
@@ -138,7 +170,11 @@ export async function saveProduct(fd: FormData): Promise<{ ok: boolean; error?: 
       if (!/^image\/(jpeg|png|webp)$/.test(f.type) || f.size > 5 * 1024 * 1024) continue;
       const path = `${pid}/${randomUUID()}.${f.type.split("/")[1]}`;
       const up = await sb.storage.from("product-images").upload(path, f, { contentType: f.type });
-      if (!up.error) await sb.from("product_images").insert({ product_id: pid, path, sort_order: order++ });
+      if (!up.error) {
+        const image_url = sb.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+        await sb.from("product_images").insert({ product_id: pid, path, image_url, sort_order: order, order_index: order, is_main: order === 0 });
+        order++;
+      }
     }
 
     revalidatePath("/", "layout");
