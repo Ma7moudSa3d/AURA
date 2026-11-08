@@ -5,21 +5,28 @@ import Link from "next/link";
 import { useLocale } from "next-intl";
 import { CodeChip } from "@/components/Campaign";
 
-/** Optional artwork: drop a file with this path into /public/offers and it shows up automatically. */
-function OfferArt({ src }: { src: string }) {
+/** Uploaded artwork if there is one; otherwise a typographic tile in the brand colours (no empty gap, no 404). */
+function OfferArt({ src, big, small }: { src?: string | null; big: string; small: string }) {
   const [ok, setOk] = useState(true);
-  if (!ok) return null;
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt="" onError={() => setOk(false)} className="mb-5 aspect-square w-full object-cover" />;
+  if (src && ok) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={src} alt="" onError={() => setOk(false)} className="mb-5 aspect-square w-full object-cover" />;
+  }
+  return (
+    <div className="mb-5 flex aspect-square w-full flex-col items-center justify-center border border-gold/30 bg-[radial-gradient(circle_at_50%_40%,rgba(214,178,94,.18),transparent_70%)] text-center">
+      <span className="h-display bg-gold bg-clip-text text-5xl text-transparent">{big}</span>
+      <span className="mt-3 text-xs uppercase tracking-[.35em] text-cream/70">{small}</span>
+    </div>
+  );
 }
 
 export function OfferCard({
-  art, titleEn, titleAr, bodyEn, bodyAr, code, href,
-}: { href: string; art: string; titleEn: string; titleAr: string; bodyEn: string; bodyAr: string; code: string }) {
+  art, tileBig, tileSmall, titleEn, titleAr, bodyEn, bodyAr, code, href,
+}: { href: string; art?: string | null; tileBig: string; tileSmall: string; titleEn: string; titleAr: string; bodyEn: string; bodyAr: string; code: string }) {
   const isAr = useLocale() === "ar";
   return (
     <div className="flex flex-col border border-gold/40 bg-surface p-5 text-center">
-      <OfferArt src={art} />
+      <OfferArt src={art} big={tileBig} small={tileSmall} />
       <p className="text-[10px] uppercase tracking-[.35em] text-gold">✦ {isAr ? "الجمعة الذهبية" : "Golden Friday"}</p>
       <h3 className="h-display mt-2 text-2xl text-cream">{isAr ? titleAr : titleEn}</h3>
       <p className="mt-2 flex-1 text-sm text-cream/70">{isAr ? bodyAr : bodyEn}</p>

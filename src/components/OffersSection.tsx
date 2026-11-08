@@ -27,13 +27,13 @@ export default async function OffersSection({ contained = false }: { contained?:
     <section className={contained ? "mb-10" : "container-x py-12"}>
       <div className="grid gap-6 md:grid-cols-3">
         {a && (
-          <OfferCard href="/offers/2x100-get-50-free" art={settings?.offer_image_100 || "/offers/offer-100.jpg"} code={a.code}
+          <OfferCard href="/offers/2x100-get-50-free" art={settings?.offer_image_100} tileBig="2 + 1" tileSmall="100ML · 100ML · 50ML FREE" code={a.code}
             titleEn="2 × 100ML + 50ML free" titleAr="2 × 100مل + 50مل هدية"
             bodyEn="Buy any two 100ML bottles and the 50ML bottle in your cart is on us."
             bodyAr="اشتري أي زجاجتين 100 مل وزجاجة 50 مل في سلتك علينا." />
         )}
         {b && (
-          <OfferCard href="/offers/3x50-third-half" art={settings?.offer_image_50 || "/offers/offer-50.jpg"} code={b.code}
+          <OfferCard href="/offers/3x50-third-half" art={settings?.offer_image_50} tileBig="3rd −50%" tileSmall="3 × 50ML" code={b.code}
             titleEn="3 × 50ML, third at half price" titleAr="3 × 50مل، الثالثة بنصف السعر"
             bodyEn="Pick three 50ML bottles and get 50% off the third one."
             bodyAr="اختر 3 زجاجات 50 مل واحصل على خصم 50% على الثالثة." />
