@@ -148,7 +148,14 @@ export function CheckoutForm({
 
   // A coupon result depends on the cart: drop it when the cart changes so the customer re-applies it.
   const cartKey = JSON.stringify(offerLines);
-  useEffect(() => { setAppliedCoupon(null); }, [cartKey]);
+  useEffect(() => {
+    setAppliedCoupon(null);
+    // An offer page remembers its code; apply it as soon as the cart qualifies (a wrong cart just shows the usual error).
+    let saved: string | null = null;
+    try { saved = sessionStorage.getItem("aura_offer_code"); } catch {}
+    if (saved && items.length > 0) handleApplyCoupon(saved, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cartKey]);
   const currentShippingFee = netSubtotal >= freeThreshold || items.length === 0 ? 0 : shippingFee;
   const totalAmount = netSubtotal + currentShippingFee;
 
@@ -156,7 +163,7 @@ export function CheckoutForm({
   const depositAmount = Math.round(totalAmount * 0.25);
   const remainingBalance = totalAmount - depositAmount;
 
-  const handleApplyCoupon = async (override?: string) => {
+  const handleApplyCoupon = async (override?: string, silent = false) => {
     const codeToUse = (typeof override === "string" ? override : couponCode).trim();
     if (!codeToUse) return;
     setCouponCode(codeToUse);
@@ -176,7 +183,7 @@ export function CheckoutForm({
         });
         setCouponError(null);
       } else {
-        setCouponError(res?.error || (isAr ? "كوبون غير صالح" : "Invalid coupon"));
+        if (!silent) setCouponError(res?.error || (isAr ? "كوبون غير صالح" : "Invalid coupon"));
       }
     } catch (err: any) {
       setCouponError(isAr ? "حدث خطأ أثناء تطبيق الكوبون" : "Error applying coupon");
