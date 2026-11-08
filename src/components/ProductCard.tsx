@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useLocale } from "next-intl";
 import Link from "next/link";
 import { useCart, useCartStore } from "@/lib/cart";
 import { resolveVariants, pickVariant, minPrice, DEFAULT_VOLUME } from "@/lib/variants";
@@ -15,11 +16,12 @@ export interface ProductCardProps {
 const ProductCard: React.FC<ProductCardProps> = (props) => {
   const item = props.product || props.p;
   const { addItem } = useCart();
+  const isAr = useLocale() === "ar";
   const [added, setAdded] = React.useState(false);
 
   if (!item) return null;
 
-  const name = item.title_en || item.title_ar || item.name || "AURA Fragrance";
+  const name = (isAr ? item.title_ar || item.title_en : item.title_en || item.title_ar) || item.name || "AURA Fragrance";
   const basePrice = minPrice(item);
   const defaultVariant = pickVariant(item, DEFAULT_VOLUME);
   const productLink = `/product/${item.slug || item.id}`;
@@ -43,7 +45,7 @@ const ProductCard: React.FC<ProductCardProps> = (props) => {
 
         {item.is_featured && (
           <div className="absolute top-3 left-3 bg-gold text-ink text-[10px] font-bold px-2 py-1 rounded-sm uppercase tracking-widest shadow-lg">
-            Featured
+            {isAr ? "مميز" : "Featured"}
           </div>
         )}
       </Link>
@@ -71,10 +73,10 @@ const ProductCard: React.FC<ProductCardProps> = (props) => {
 
         {/* السعر */}
         <p className="text-gold font-bold text-sm mt-auto pt-2">
-          <span className="text-cream/50 text-[10px] font-normal mr-1 uppercase tracking-tighter">
-            From
+          <span className="text-cream/50 text-[10px] font-normal me-1 uppercase tracking-tighter">
+            {isAr ? "من" : "From"}
           </span>
-          {basePrice} EGP
+          {basePrice} {isAr ? "ج.م" : "EGP"}
         </p>
 
         {/* زر الإضافة للسلة */}
@@ -99,7 +101,7 @@ const ProductCard: React.FC<ProductCardProps> = (props) => {
             added ? "bg-gold text-ink" : "bg-transparent text-gold hover:bg-gold hover:text-ink"
           }`}
         >
-          {added ? "✓ Added" : "Add to Cart"}
+          {added ? (isAr ? "✓ تمت الإضافة" : "✓ Added") : isAr ? "أضف للسلة" : "Add to Cart"}
         </button>
       </div>
     </div>

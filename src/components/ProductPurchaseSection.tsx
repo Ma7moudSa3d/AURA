@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useLocale } from "next-intl";
 import { useCart, useCartStore } from "@/lib/cart";
 import { DEFAULT_VOLUME, resolveVariants } from "@/lib/variants";
 import { getAllImageUrls, DEFAULT_PLACEHOLDER } from "@/lib/image-utils";
@@ -13,10 +14,11 @@ export interface ProductPurchaseSectionProps {
 
 const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product, whatsapp }) => {
   const { addItem } = useCart();
+  const isAr = useLocale() === "ar";
 
   const p = product ?? {};
-  const title = p.title_en || p.title_ar || p.name || "AURA Fragrance";
-  const description = p.description_en || p.description_ar || p.description || "";
+  const title = (isAr ? p.title_ar || p.title_en : p.title_en || p.title_ar) || p.name || "AURA Fragrance";
+  const description = (isAr ? p.description_ar || p.description_en : p.description_en || p.description_ar) || p.description || "";
   const gallery = getAllImageUrls(p);
   const [activeImg, setActiveImg] = useState(0);
   const mainImageUrl = gallery[activeImg] ?? gallery[0] ?? DEFAULT_PLACEHOLDER;
@@ -76,7 +78,7 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
         )}
         {product.is_featured && (
           <div className="absolute top-4 left-4 bg-gold text-ink text-xs font-bold px-3 py-1 rounded-sm uppercase tracking-widest shadow-xl">
-            Featured
+            {isAr ? "مميز" : "Featured"}
           </div>
         )}
       </div>
@@ -88,14 +90,14 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
             {title}
           </h1>
           <p className="text-2xl font-bold text-gold">
-            {selectedVariant.price} EGP
+            {selectedVariant.price} {isAr ? "ج.م" : "EGP"}
           </p>
         </div>
 
         {/* خيارات الأحجام */}
         <div>
           <label className="block text-xs uppercase tracking-widest text-cream/60 mb-3">
-            Select Size / السعة :
+            {isAr ? "اختر السعة" : "Select size"}
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {variants.map((v) => {
@@ -112,7 +114,7 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
                   }`}
                 >
                   <div className="text-xs font-bold uppercase">{v.volume}</div>
-                  <div className="text-[10px] text-gold mt-1">{v.price} EGP</div>
+                  <div className="text-[10px] text-gold mt-1">{v.price} {isAr ? "ج.م" : "EGP"}</div>
                 </button>
               );
             })}
@@ -131,7 +133,7 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
         {/* أزرار السلة والواتساب */}
         <div className="space-y-3 pt-2">
           <div className="flex items-center space-x-3 rtl:space-x-reverse mb-4">
-            <span className="text-xs uppercase tracking-widest text-cream/60">Quantity:</span>
+            <span className="text-xs uppercase tracking-widest text-cream/60">{isAr ? "الكمية" : "Quantity"}</span>
             <div className="flex items-center border border-white/10 bg-surface rounded-sm">
               <button
                 type="button"
@@ -160,7 +162,7 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
                 : "bg-gold text-ink hover:brightness-110"
             }`}
           >
-            {added ? "ADDED TO BAG ✓" : `ADD TO BAG (${selectedVariant.volume})`}
+            {added ? (isAr ? "تمت الإضافة ✓" : "ADDED TO BAG ✓") : isAr ? `أضف للسلة (${selectedVariant.volume})` : `ADD TO BAG (${selectedVariant.volume})`}
           </button>
 
           {waNumber && (
@@ -170,7 +172,7 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
             rel="noopener noreferrer"
             className="w-full py-3 px-6 bg-transparent border border-white/10 text-cream/70 hover:border-gold hover:text-gold font-medium text-xs uppercase tracking-widest transition-all text-center flex items-center justify-center gap-2 rounded-sm"
           >
-            💬 Chat on WhatsApp
+            {isAr ? "💬 تواصل عبر واتساب" : "💬 Chat on WhatsApp"}
           </a>
           )}
         </div>

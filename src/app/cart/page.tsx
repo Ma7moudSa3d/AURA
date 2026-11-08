@@ -26,7 +26,7 @@ export default function CartPage() {
   if (!mounted) {
     return (
       <div className="container-x py-16 text-center text-cream/60">
-        Loading cart...
+        {c("loading")}
       </div>
     )
   }
