@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useEffect } from "react";
 import { saveSettings } from "@/app/actions/admin";
+import { isoToCairoLocal } from "@/lib/campaign";
 
 interface SettingsFormProps {
   initialSettings: any;
@@ -67,6 +68,25 @@ export default function SettingsForm({ initialSettings: s }: SettingsFormProps) 
           {message.text}
         </div>
       )}
+
+      {/* Golden Friday campaign */}
+      <div className="sm:col-span-2 mt-4 border border-gold/40 bg-gold/5 p-5">
+        <h3 className="text-gold h-display text-lg mb-1">✦ Golden Friday Campaign</h3>
+        <p className="mb-4 text-xs text-cream/60">
+          When switched on (and before the end date), the whole store switches to the campaign look: top bar with countdown, home hero, shop banner,
+          product ribbons and a coupon reminder in the cart and checkout. Remember to activate the matching coupon in Admin &rarr; Coupons.
+        </p>
+        <label className="mb-4 flex items-center justify-between border border-white/10 bg-surface px-4 py-3">
+          <span className="text-xs uppercase tracking-widest text-cream">Campaign is live</span>
+          <input type="checkbox" name="campaign_active" defaultChecked={!!s?.campaign_active} className="h-5 w-5 cursor-pointer accent-gold" />
+        </label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {f("Ends at (Cairo time)", "campaign_ends_at", isoToCairoLocal(s?.campaign_ends_at), "datetime-local")}
+          {f("Coupon code to promote", "campaign_code", s?.campaign_code)}
+          {f("Headline (English)", "campaign_headline_en", s?.campaign_headline_en)}
+          {f("Headline (Arabic)", "campaign_headline_ar", s?.campaign_headline_ar)}
+        </div>
+      </div>
 
       {/* Payment Methods Section */}
       <div className="sm:col-span-2 mt-4">

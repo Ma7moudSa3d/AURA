@@ -2,6 +2,7 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
+import { CampaignNote } from "@/components/Campaign";
 import Link from "next/link"
 import Image from "next/image"
 import { toStorageUrl, DEFAULT_PLACEHOLDER } from "@/lib/image-utils"
@@ -126,6 +127,7 @@ export default function CartDrawer({ loggedIn }: { loggedIn?: boolean }) {
         {/* Drawer Footer */}
         {items.length > 0 && (
           <div className="p-5 border-t border-white/10 bg-ink/50 space-y-4">
+            <CampaignNote />
             <div className="flex justify-between items-center text-sm font-serif">
               <span className="text-cream/70">{t("subtotal")}</span>
               <span className="font-bold text-gold text-lg">{money(subtotal, locale)} {c("currency")}</span>
