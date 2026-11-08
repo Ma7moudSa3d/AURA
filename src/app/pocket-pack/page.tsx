@@ -11,7 +11,8 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Pocket Pack" };
 
 export default async function PocketPackPage() {
-  if (!getCampaign(await getSettings())) notFound();
+  const settings: any = await getSettings();
+  if (!getCampaign(settings)) notFound();
   const { data } = await supabaseService().from("products").select("*, product_images(*)").eq("is_active", true).order("title_en");
   const options = (data ?? []).map((p: any) => ({
     id: p.id,
@@ -23,7 +24,7 @@ export default async function PocketPackPage() {
   }));
   return (
     <div className="container-x py-12">
-      <PocketPackPicker options={options} />
+      <PocketPackPicker options={options} image={settings?.offer_image_pack || "/offers/pocket-pack.jpg"} />
     </div>
   );
 }

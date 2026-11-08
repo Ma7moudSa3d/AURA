@@ -80,6 +80,26 @@ export default function SettingsForm({ initialSettings: s }: SettingsFormProps) 
           <span className="text-xs uppercase tracking-widest text-cream">Campaign is live</span>
           <input type="checkbox" name="campaign_active" defaultChecked={!!s?.campaign_active} className="h-5 w-5 cursor-pointer accent-gold" />
         </label>
+        <p className="mb-2 text-xs text-cream/60">Offer artwork: square image, under 4 MB each. Choose one image, press Save, then repeat for the next.</p>
+        <div className="mb-4 grid gap-4 sm:grid-cols-3">
+          {([
+            ["offer_image_100", "Offer image: 2 × 100ML + 50ML free", "/offers/offer-100.jpg"],
+            ["offer_image_50", "Offer image: 3 × 50ML, third half price", "/offers/offer-50.jpg"],
+            ["offer_image_pack", "Pocket Pack image", "/offers/pocket-pack.jpg"],
+          ] as const).map(([key, label, fallback]) => (
+            <div key={key} className="border border-white/10 bg-surface p-3">
+              <p className="mb-2 text-[11px] uppercase tracking-widest text-cream/60">{label}</p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={s?.[key] || fallback} alt="" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} className="mb-2 aspect-square w-full object-cover" />
+              <input type="file" name={key} accept="image/*" className="block w-full text-xs text-cream/70 file:mr-2 file:border file:border-gold/50 file:bg-transparent file:px-2 file:py-1 file:text-gold" />
+              {s?.[key] && (
+                <label className="mt-2 flex items-center gap-2 text-[11px] text-cream/50">
+                  <input type="checkbox" name={`remove_${key}`} className="accent-gold" /> Remove custom image
+                </label>
+              )}
+            </div>
+          ))}
+        </div>
         <div className="grid gap-4 sm:grid-cols-2">
           {f("Ends at (Cairo time)", "campaign_ends_at", isoToCairoLocal(s?.campaign_ends_at), "datetime-local")}
           {f("Coupon code to promote", "campaign_code", s?.campaign_code)}

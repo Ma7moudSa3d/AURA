@@ -32,12 +32,12 @@ export function OfferCard({
   );
 }
 
-export function PocketPackCard({ price, worth }: { price: number; worth: number }) {
+export function PocketPackCard({ price, worth, image }: { price: number; worth: number; image: string }) {
   const isAr = useLocale() === "ar";
   return (
     <Link href="/pocket-pack" className="group flex flex-col border border-gold/40 bg-surface p-5 text-center transition hover:border-gold">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/offers/pocket-pack.jpg" alt="Pocket Pack" className="mb-5 aspect-square w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" />
+      <img src={image} alt="Pocket Pack" className="mb-5 aspect-square w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" />
       <p className="text-[10px] uppercase tracking-[.35em] text-gold">✦ {isAr ? "الجمعة الذهبية" : "Golden Friday"}</p>
       <h3 className="h-display mt-2 text-2xl text-cream">{isAr ? "باكيدج الجيب" : "The Pocket Pack"}</h3>
       <p className="mt-2 flex-1 text-sm text-cream/70">

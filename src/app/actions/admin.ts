@@ -241,7 +241,26 @@ export async function saveSettings(fd: FormData): Promise<{ ok: boolean; error?:
 
     const sb = supabaseService();
 
+    // Campaign artwork: only touched when a new file is chosen (or "remove" is ticked).
+    const images: Record<string, string | null> = {};
+    for (const key of ["offer_image_100", "offer_image_50", "offer_image_pack"]) {
+      const f = fd.get(key);
+      if (f instanceof File && f.size > 0) {
+        if (!f.type.startsWith("image/") || f.size > 4 * 1024 * 1024) {
+          return { ok: false, error: "Offer images must be an image file under 4MB (upload one at a time)." };
+        }
+        const ext = (f.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "jpg";
+        const path = `campaign/${key}-${Date.now()}.${ext}`;
+        const { error: upErr } = await sb.storage.from("product-images").upload(path, Buffer.from(await f.arrayBuffer()), { contentType: f.type, upsert: false });
+        if (upErr) return { ok: false, error: `Could not upload ${key}: ${upErr.message}` };
+        images[key] = sb.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+      } else if (fd.get(`remove_${key}`) !== null) {
+        images[key] = null;
+      }
+    }
+
     const { error } = await sb.from("settings").upsert({
+      ...images,
       id: 1,
       whatsapp_number: rawWhatsapp || null,
       shipping_fee: shippingFee,

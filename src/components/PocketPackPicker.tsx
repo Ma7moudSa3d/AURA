@@ -7,7 +7,7 @@ import { POCKET_PACK_PRICE, POCKET_PACK_SIZE, POCKET_PACK_VOLUME } from "@/lib/o
 
 type Opt = { id: string; title_en: string; title_ar: string | null; price: number; image: string; inStock: boolean };
 
-export default function PocketPackPicker({ options }: { options: Opt[] }) {
+export default function PocketPackPicker({ options, image = "/offers/pocket-pack.jpg" }: { options: Opt[]; image?: string }) {
   const isAr = useLocale() === "ar";
   const { addItem } = useCart();
   const available = options.filter((o) => o.inStock);
@@ -49,7 +49,7 @@ export default function PocketPackPicker({ options }: { options: Opt[] }) {
     <div className="grid gap-10 md:grid-cols-2">
       <div>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/offers/pocket-pack.jpg" alt="Pocket Pack" className="w-full border border-gold/30 object-cover" />
+        <img src={image} alt="Pocket Pack" className="w-full border border-gold/30 object-cover" />
       </div>
       <div>
         <p className="text-xs uppercase tracking-[.4em] text-gold">✦ {isAr ? "الجمعة الذهبية" : "Golden Friday"}</p>
