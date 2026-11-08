@@ -14,8 +14,8 @@ function OfferArt({ src }: { src: string }) {
 }
 
 export function OfferCard({
-  art, titleEn, titleAr, bodyEn, bodyAr, code,
-}: { art: string; titleEn: string; titleAr: string; bodyEn: string; bodyAr: string; code: string }) {
+  art, titleEn, titleAr, bodyEn, bodyAr, code, href,
+}: { href: string; art: string; titleEn: string; titleAr: string; bodyEn: string; bodyAr: string; code: string }) {
   const isAr = useLocale() === "ar";
   return (
     <div className="flex flex-col border border-gold/40 bg-surface p-5 text-center">
@@ -26,7 +26,7 @@ export function OfferCard({
       <div className="mt-4 flex flex-col items-center gap-2">
         <span className="text-[11px] uppercase tracking-widest text-cream/50">{isAr ? "الكود عند الدفع" : "Code at checkout"}</span>
         <CodeChip code={code} />
-        <Link href="/shop" className="btn-gold mt-3 w-full text-center">{isAr ? "تسوق الآن" : "Shop now"}</Link>
+        <Link href={href} className="btn-gold mt-3 w-full text-center">{isAr ? "اختر زجاجاتك" : "Build your offer"}</Link>
       </div>
     </div>
   );
