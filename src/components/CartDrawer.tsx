@@ -4,6 +4,7 @@
 import React, { useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
+import { toStorageUrl, DEFAULT_PLACEHOLDER } from "@/lib/image-utils"
 import { useLocale, useTranslations } from "next-intl"
 import { useCart, useCartStore, cartSubtotal, CartItem } from "@/lib/cart-store"
 import { money } from "@/lib/format"
@@ -78,7 +79,7 @@ export default function CartDrawer({ loggedIn }: { loggedIn?: boolean }) {
               <div key={l.id || `${l.product_id}-${l.volume}`} className="flex gap-4 border-b border-white/5 pb-4">
                 <div className="relative h-24 w-20 shrink-0 bg-ink border border-white/10 overflow-hidden rounded-sm">
                   {(l.image || l.image_url) ? (
-                    <Image src={l.image || l.image_url} alt={l.title_en || l.name || "Product"} fill sizes="80px" className="object-cover" />
+                    <Image src={toStorageUrl(l.image || l.image_url) || DEFAULT_PLACEHOLDER} alt={l.title_en || l.name || "Product"} fill sizes="80px" className="object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-xs text-cream/40">AURA</div>
                   )}
