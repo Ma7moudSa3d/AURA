@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { adminListCoupons, adminCreateCoupon, adminDeleteCoupon } from '@/app/actions/admin';
+import { adminListCoupons, adminCreateCoupon, adminDeleteCoupon, adminToggleCoupon } from '@/app/actions/admin';
 
 type Coupon = {
   id: string;
@@ -87,6 +87,12 @@ export default function CouponsPage() {
       setFirstOrderOnly(false);
       fetchCoupons();
     }
+  };
+
+  const handleToggle = async (c: Coupon) => {
+    const res = await adminToggleCoupon(c.id, !c.is_active);
+    if (res.ok) { showToast(c.is_active ? 'Coupon paused' : 'Coupon activated'); fetchCoupons(); }
+    else alert('Error: ' + res.error);
   };
 
   const handleDeleteCoupon = async (id: string, codeName: string) => {
@@ -216,7 +222,10 @@ export default function CouponsPage() {
                 const val = c.value ?? c.discount_percent ?? c.discount_amount ?? 0;
                 return (
                   <tr key={c.id} className="border-t border-white/5 hover:bg-white/5">
-                    <td className="p-3 font-mono font-bold text-gold">{c.code}</td>
+                    <td className="p-3 font-mono font-bold text-gold">
+                      {c.code}
+                      {c.is_active === false && <span className="ms-2 rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-normal text-cream/60">PAUSED</span>}
+                    </td>
                     <td className="p-3 uppercase text-xs text-cream/70">{c.type || 'percent'}</td>
                     <td className="p-3 font-mono">
                       {val} {c.type === 'fixed' ? 'EGP' : '%'}
@@ -229,7 +238,13 @@ export default function CouponsPage() {
                     <td className="p-3 font-mono">
                       {c.used_count ?? 0} / {c.max_uses ?? '∞'}
                     </td>
-                    <td className="p-3 text-right">
+                    <td className="p-3 text-right space-x-2">
+                      <button
+                        onClick={() => handleToggle(c)}
+                        className="px-3 py-1 border border-gold/60 text-gold hover:bg-gold hover:text-ink rounded text-xs font-semibold"
+                      >
+                        {c.is_active === false ? 'Activate' : 'Pause'}
+                      </button>
                       <button
                         onClick={() => handleDeleteCoupon(c.id, c.code)}
                         className="px-3 py-1 bg-red-600/80 hover:bg-red-600 text-cream rounded text-xs font-semibold"

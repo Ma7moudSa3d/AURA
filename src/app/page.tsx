@@ -4,14 +4,19 @@ import { supabaseServer } from "@/lib/supabase/server";
 import ProductCard from "@/components/ProductCard";
 import Reveal from "@/components/Reveal";
 import type { Product } from "@/lib/types";
+import { getSettings } from "@/lib/data";
+import { getCampaign } from "@/lib/campaign";
+import { CampaignHero } from "@/components/Campaign";
 
 export default async function Home() {
   const t = await getTranslations("home");
   const { data } = await supabaseServer().from("products").select("*, product_images(id, path, sort_order)")
     .eq("is_active", true).eq("is_featured", true).order("created_at", { ascending: false }).limit(4);
   const products = (data ?? []) as Product[];
+  const campaign = getCampaign(await getSettings());
   return (
     <>
+      {campaign ? <CampaignHero /> : (
       <section className="relative grid min-h-[80vh] place-items-center overflow-hidden px-5 text-center">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(214,178,94,.14),transparent_55%)]" />
         <Reveal className="relative max-w-3xl">
@@ -21,6 +26,7 @@ export default async function Home() {
           <Link href="/shop" className="btn-gold mt-10">{t("cta")}</Link>
         </Reveal>
       </section>
+      )}
 
       {products.length > 0 && (
         <section className="container-x py-16">

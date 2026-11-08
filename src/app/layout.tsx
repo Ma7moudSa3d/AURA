@@ -8,6 +8,8 @@ import Footer from "@/components/Footer";
 import CartDrawer from "@/components/CartDrawer";
 import CartSync from "@/components/CartSync";
 import { getSettings, getUser } from "@/lib/data";
+import { getCampaign } from "@/lib/campaign";
+import { CampaignProvider, CampaignBar } from "@/components/Campaign";
 
 const display = Cormorant_Garamond({ subsets: ["latin"], weight: ["300", "400", "500", "600"], variable: "--font-display" });
 const body = Inter({ subsets: ["latin"], variable: "--font-body" });
@@ -23,17 +25,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const locale = await getLocale();
   const messages = await getMessages();
   const [settings, user] = await Promise.all([getSettings(), getUser()]);
+  const campaign = getCampaign(settings);
   const banner = locale === "ar" ? settings.announcement_ar : settings.announcement_en;
   return (
     <html lang={locale} dir={locale === "ar" ? "rtl" : "ltr"} className={`${display.variable} ${body.variable} ${arabic.variable}`}>
       <body className="min-h-screen font-sans">
         <NextIntlClientProvider messages={messages} locale={locale}>
-          {banner && <div className="bg-gold py-2 text-center text-xs tracking-widest text-ink">{banner}</div>}
+          <CampaignProvider value={campaign}>
+          {campaign ? <CampaignBar /> : banner && <div className="bg-gold py-2 text-center text-xs tracking-widest text-ink">{banner}</div>}
           <Header loggedIn={!!user} whatsapp={settings.whatsapp_number} />
           <main>{children}</main>
           <Footer settings={settings} />
           <CartDrawer loggedIn={!!user} />
           <CartSync loggedIn={!!user} />
+          </CampaignProvider>
         </NextIntlClientProvider>
       </body>
     </html>

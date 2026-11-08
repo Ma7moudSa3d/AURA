@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useLocale } from "next-intl";
+import { CampaignRibbon } from "@/components/Campaign";
 import Link from "next/link";
 import { useCart, useCartStore } from "@/lib/cart";
 import { resolveVariants, pickVariant, minPrice, DEFAULT_VOLUME } from "@/lib/variants";
@@ -43,8 +44,9 @@ const ProductCard: React.FC<ProductCardProps> = (props) => {
           }}
         />
 
+        <CampaignRibbon />
         {item.is_featured && (
-          <div className="absolute top-3 left-3 bg-gold text-ink text-[10px] font-bold px-2 py-1 rounded-sm uppercase tracking-widest shadow-lg">
+          <div className="absolute top-3 start-3 bg-gold text-ink text-[10px] font-bold px-2 py-1 rounded-sm uppercase tracking-widest shadow-lg">
             {isAr ? "مميز" : "Featured"}
           </div>
         )}

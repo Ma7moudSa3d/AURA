@@ -1,5 +1,6 @@
 "use server";
 import { z } from "zod";
+import { cairoLocalToIso } from "@/lib/campaign";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin";
@@ -258,6 +259,11 @@ export async function saveSettings(fd: FormData): Promise<{ ok: boolean; error?:
       enable_cod,
       enable_instapay,
       enable_deposit,
+      campaign_active: fd.get("campaign_active") !== null,
+      campaign_ends_at: cairoLocalToIso(s("campaign_ends_at")),
+      campaign_code: s("campaign_code")?.toUpperCase().replace(/[^A-Z0-9_-]/g, "") || null,
+      campaign_headline_en: s("campaign_headline_en"),
+      campaign_headline_ar: s("campaign_headline_ar"),
       updated_at: new Date().toISOString(),
     }, { onConflict: "id" });
 
@@ -326,6 +332,14 @@ export async function adminCreateCoupon(input: {
 export async function adminDeleteCoupon(id: string): Promise<{ ok: boolean; error?: string }> {
   await requireAdmin();
   const { error } = await supabaseService().from("coupons").delete().eq("id", z.string().uuid().parse(id));
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/coupons");
+  return { ok: true };
+}
+
+export async function adminToggleCoupon(id: string, active: boolean): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin();
+  const { error } = await supabaseService().from("coupons").update({ is_active: active }).eq("id", z.string().uuid().parse(id));
   if (error) return { ok: false, error: error.message };
   revalidatePath("/admin/coupons");
   return { ok: true };

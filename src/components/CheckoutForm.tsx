@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useCampaign } from "@/components/Campaign";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { useCartStore } from "@/lib/cart-store";
@@ -119,6 +120,7 @@ export function CheckoutForm({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Coupon state
+  const campaign = useCampaign();
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<{ id: string; code: string; discount: number } | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
@@ -551,6 +553,15 @@ export function CheckoutForm({
               <label className="block text-xs uppercase tracking-wider text-cream/60">
                 {isAr ? "كود الخصم (كوبون)" : "Discount Coupon"}
               </label>
+              {campaign?.code && !appliedCoupon && (
+                <button
+                  type="button"
+                  onClick={() => setCouponCode(campaign.code!)}
+                  className="w-full border border-dashed border-gold/60 bg-gold/5 px-3 py-2 text-start text-xs text-gold hover:bg-gold/10"
+                >
+                  ✦ {isAr ? `الجمعة الذهبية: اضغط لاستخدام الكود ${campaign.code}` : `Golden Friday: tap to use code ${campaign.code}`}
+                </button>
+              )}
               <div className="flex gap-2">
                 <input
                   type="text"
