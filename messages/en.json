@@ -22,7 +22,7 @@
     "top": "Top notes", "heart": "Heart notes", "base": "Base notes", "reviews": "Reviews", "noReviews": "No reviews yet.",
     "writeReview": "Write a review", "submitReview": "Submit (moderated)", "waMsg": "Hello AURA, I'm interested in {name}."
   },
-  "cart": { "title": "Your cart", "empty": "Your cart is empty.", "subtotal": "Subtotal", "checkout": "Checkout", "remove": "Remove", "continue": "Continue shopping", "note": "Shipping and discounts are calculated at checkout." },
+  "cart": { "continueShopping": "Continue shopping", "summary": "Order summary", "title": "Your cart", "empty": "Your cart is empty.", "subtotal": "Subtotal", "checkout": "Checkout", "remove": "Remove", "continue": "Continue shopping", "note": "Shipping and discounts are calculated at checkout." },
   "checkout": {
     "title": "Checkout", "shipping": "Shipping details", "fullName": "Full name", "phone": "Phone", "address1": "Address line 1", "address2": "Address line 2 (optional)",
     "city": "City", "notes": "Order notes (optional)", "payment": "Payment", "payInstructions": "Pay via InstaPay or Mobile Wallet to:",
@@ -54,5 +54,5 @@
     "privacyTitle": "Privacy Policy", "privacyBody": "We collect only what is needed to process your order (name, contact details, address, payment reference). We never sell your data. Payment screenshots are stored privately and visible only to you and the store owner.",
     "termsTitle": "Terms of Service", "termsBody": "By placing an order you confirm your details are accurate. Orders are confirmed once payment is verified. Prices are in EGP."
   },
-  "common": { "currency": "EGP", "loading": "Loading...", "language": "العربية" }
+  "common": { "delete": "Remove", "currency": "EGP", "loading": "Loading...", "language": "العربية" }
 }
