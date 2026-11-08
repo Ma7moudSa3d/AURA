@@ -2,7 +2,7 @@
 
 import { supabaseService } from "@/lib/supabase/server";
 import { couponDiscount, couponProblem } from "@/lib/coupon";
-import { toOfferLines, pocketPackDiscount } from "@/lib/offers";
+import { toOfferLines, pocketPackDiscount, bundleDiscount, BUNDLE_TYPES } from "@/lib/offers";
 import { normVolume } from "@/lib/variants";
 import { getCampaign } from "@/lib/campaign";
 
@@ -49,5 +49,34 @@ export async function applyCouponAction(code: string, subtotal: number, items: {
   } catch (err: any) {
     console.error("applyCouponAction exception:", err);
     return { success: false, error: "تعذر تطبيق الكود / Could not apply coupon" };
+  }
+}
+
+/** Active offer coupons this cart already qualifies for (used to suggest them to the customer). */
+export async function suggestOffers(
+  items: { product_id: string; volume?: string; quantity?: number }[] = []
+): Promise<{ code: string; saving: number }[]> {
+  try {
+    const sb = supabaseService();
+    const { data: st } = await sb.from("settings").select("*").eq("id", 1).maybeSingle();
+    if (!getCampaign(st)) return [];
+    const wanted = (Array.isArray(items) ? items.slice(0, 30) : []).map((i) => ({
+      product_id: String(i?.product_id ?? ""),
+      volume: normVolume(i?.volume),
+      qty: Math.min(20, Math.max(1, Math.floor(Number(i?.quantity ?? 1)) || 1)),
+    }));
+    const ids = Array.from(new Set(wanted.map((w) => w.product_id).filter(Boolean)));
+    if (!ids.length) return [];
+    const [{ data: prods }, { data: coupons }] = await Promise.all([
+      sb.from("products").select("*").in("id", ids),
+      sb.from("coupons").select("code,type,expires_at,max_uses,used_count").eq("is_active", true).in("type", [...BUNDLE_TYPES]),
+    ]);
+    const lines = toOfferLines(wanted, new Map((prods ?? []).map((p: any) => [p.id, p])));
+    return (coupons ?? [])
+      .filter((c: any) => (!c.expires_at || new Date(c.expires_at) > new Date()) && !(c.max_uses && Number(c.used_count ?? 0) >= Number(c.max_uses)))
+      .map((c: any) => ({ code: c.code as string, saving: bundleDiscount(c.type, lines) }))
+      .filter((o) => o.saving > 0);
+  } catch {
+    return [];
   }
 }

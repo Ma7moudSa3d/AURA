@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
 import type { Campaign } from "@/lib/campaign";
+import { suggestOffers } from "@/app/actions/coupon";
 
 const Ctx = createContext<Campaign | null>(null);
 export const CampaignProvider = ({ value, children }: { value: Campaign | null; children: React.ReactNode }) => (
@@ -159,6 +160,41 @@ export function ShopCampaignStrip() {
       <div className="flex flex-wrap items-center gap-4">
         {c.code && <CodeChip code={c.code} />}
         <Countdown endsAt={c.endsAt} />
+      </div>
+    </div>
+  );
+}
+
+/** "Your cart qualifies for an offer" tip. In the checkout `onApply` applies the code in one tap. */
+export function OfferSuggestion({
+  items, appliedCode, onApply,
+}: { items: { product_id: string; volume?: string; quantity?: number }[]; appliedCode?: string | null; onApply?: (code: string) => void }) {
+  const isAr = useLocale() === "ar";
+  const [offers, setOffers] = useState<{ code: string; saving: number }[]>([]);
+  const key = JSON.stringify(items);
+  useEffect(() => {
+    let live = true;
+    const t = setTimeout(() => {
+      suggestOffers(items).then((r) => live && setOffers(r)).catch(() => {});
+    }, 400);
+    return () => { live = false; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  const best = offers.filter((o) => o.code !== appliedCode).sort((a, b) => b.saving - a.saving)[0];
+  if (!best) return null;
+  return (
+    <div className="space-y-2 border border-gold bg-gold/10 px-3 py-3 text-xs text-cream">
+      <p className="font-semibold text-gold">
+        ✦ {isAr ? `سلتك مطابقة لعرض! وفّر ${best.saving} ج.م` : `Your cart qualifies for an offer! Save ${best.saving} EGP`}
+      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-cream/70">{isAr ? "استخدم الكود" : "Use code"}</span>
+        <CodeChip code={best.code} />
+        {onApply && (
+          <button type="button" onClick={() => onApply(best.code)} className="btn-gold px-4 py-1.5 text-[11px]">
+            {isAr ? "طبّق الآن" : "Apply now"}
+          </button>
+        )}
       </div>
     </div>
   );

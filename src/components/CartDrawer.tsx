@@ -2,7 +2,7 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import { CampaignNote, useCampaign } from "@/components/Campaign";
+import { CampaignNote, OfferSuggestion, useCampaign } from "@/components/Campaign";
 import { pocketPackDiscount } from "@/lib/offers";
 import Link from "next/link"
 import Image from "next/image"
@@ -132,6 +132,7 @@ export default function CartDrawer({ loggedIn }: { loggedIn?: boolean }) {
         {/* Drawer Footer */}
         {items.length > 0 && (
           <div className="p-5 border-t border-white/10 bg-ink/50 space-y-4">
+            <OfferSuggestion items={items.map((i: any) => ({ product_id: i.product_id, volume: i.volume || "50ML", quantity: i.quantity ?? i.qty ?? 1 }))} />
             <CampaignNote />
             {packSaving > 0 && (
               <div className="flex justify-between text-xs text-gold">
