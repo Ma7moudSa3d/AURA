@@ -278,7 +278,7 @@ export async function adminCreateCoupon(input: {
   if (!p.success) return { ok: false, error: "Invalid coupon data" };
 
   const sb = supabaseService();
-  const base = { code: p.data.code, type: p.data.type, value: p.data.value, expires_at: p.data.expires_at, max_uses: p.data.max_uses, is_active: true };
+  const base = { code: p.data.code, type: p.data.type, value: p.data.value, discount_percent: p.data.type === "percent" ? p.data.value : 0, discount_amount: p.data.type === "fixed" ? p.data.value : 0, expires_at: p.data.expires_at, max_uses: p.data.max_uses, is_active: true };
   // Newer columns exist on some databases only; fall back to the base schema if they do not.
   let { error } = await sb.from("coupons").insert({ ...base, free_shipping: p.data.free_shipping, first_order_only: p.data.first_order_only });
   if (error && /column|schema cache/i.test(error.message)) ({ error } = await sb.from("coupons").insert(base));

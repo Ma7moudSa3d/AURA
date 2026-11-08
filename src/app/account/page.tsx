@@ -5,6 +5,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { getUser } from "@/lib/data";
 import { money } from "@/lib/format";
 import ProfileForm from "@/components/ProfileForm";
+import { logout } from "@/app/actions/auth";
 
 export const metadata = { title: "Account" };
 
@@ -15,6 +16,12 @@ export default async function Account() {
   const s = await getTranslations("status");
   const c = await getTranslations("common");
   const locale = await getLocale();
+  const LEGACY: Record<string, string> = { PENDING: "PENDING_PAYMENT_VERIFICATION", PROCESSING: "CONFIRMED", CANCELLED: "CANCELED" };
+  const statusLabel = (raw?: string | null) => {
+    const k = String(raw ?? "").toUpperCase();
+    try { return s((LEGACY[k] ?? k) as "PAID"); } catch { return k.replace(/_/g, " "); }
+  };
+  const n = await getTranslations("nav");
   const sb = supabaseServer();
   const [{ data: profile }, { data: orders }] = await Promise.all([
     sb.from("profiles").select("full_name, phone").eq("id", user.id).single(),
@@ -25,7 +32,10 @@ export default async function Account() {
       <div>
         <h1 className="h-display mb-6 text-4xl">{t("profile")}</h1>
         <p className="mb-4 text-sm text-cream/60">{user.email}</p>
-        <ProfileForm name={profile?.full_name ?? ""} phone={profile?.phone ?? ""} />
+        <ProfileForm name={profile?.full_name ?? user.user_metadata?.full_name ?? ""} phone={profile?.phone ?? ""} />
+        <form action={logout} className="mt-10 border-t border-white/10 pt-6">
+          <button type="submit" className="btn-ghost">{n("logout")}</button>
+        </form>
       </div>
       <div>
         <h2 className="h-display mb-6 text-4xl">{t("orders")}</h2>
@@ -35,7 +45,7 @@ export default async function Account() {
             <Link key={o.id} href={`/track?id=${o.id}`} className="card flex items-center justify-between p-4">
               <div><p dir="ltr" className="font-mono text-xs text-cream/60">{o.id.slice(0, 8).toUpperCase()}</p>
                 <p className="text-xs text-cream/40">{new Date(o.created_at).toLocaleDateString(locale === "ar" ? "ar-EG" : "en-GB")}</p></div>
-              <div className="text-end"><p className="text-gold">{money(Number(o.total), locale)} {c("currency")}</p><p className="text-xs">{s(o.status as "PAID")}</p></div>
+              <div className="text-end"><p className="text-gold">{money(Number(o.total), locale)} {c("currency")}</p><p className="text-xs">{statusLabel(o.status)}</p></div>
             </Link>
           ))}
         </div>

@@ -94,8 +94,7 @@ export async function createOrder(formData: FormData): Promise<{ ok: true; order
       return {
         product_id: w.product_id,
         product_title_snapshot: `${p.title_en} (${variant.volume})`,
-        unit_price_snapshot: unit,
-        discount_snapshot: 0,
+        price: unit,
         qty: w.qty,
         line_total,
       };
@@ -146,10 +145,10 @@ export async function createOrder(formData: FormData): Promise<{ ok: true; order
     // DB constraint requires a proof OR a reference; cash orders carry a marker.
     const transaction_reference_id = payment_proof_path ? null : "COD";
 
+    const depositAmount = payment_method === "DEPOSIT" ? Math.round(total * 0.25) : 0;
     let orderNotes = notes;
     if (payment_method === "DEPOSIT") {
-      const dep = Math.round(total * 0.25);
-      const line = `Deposit 25%: ${dep} EGP paid, ${total - dep} EGP due on delivery`;
+      const line = `Deposit 25%: ${depositAmount} EGP paid, ${total - depositAmount} EGP due on delivery`;
       orderNotes = orderNotes ? `${orderNotes}\n${line}` : line;
     }
 
@@ -158,7 +157,9 @@ export async function createOrder(formData: FormData): Promise<{ ok: true; order
       .from("orders")
       .insert({
         user_id: user.id,
+        status: "PENDING_PAYMENT_VERIFICATION",
         subtotal,
+        discount,
         discount_total: discount,
         coupon_code: appliedCode,
         shipping_fee,
@@ -172,7 +173,8 @@ export async function createOrder(formData: FormData): Promise<{ ok: true; order
         payment_method,
         transaction_reference_id,
         payment_proof_path,
-        stock_deducted: true,
+        deposit_amount: depositAmount,
+        remaining_balance: payment_method === "DEPOSIT" ? total - depositAmount : 0,
       })
       .select("id, created_at")
       .single();
@@ -227,8 +229,8 @@ export async function createOrder(formData: FormData): Promise<{ ok: true; order
         items: lines.map((l) => ({
           product_title_snapshot: l.product_title_snapshot,
           qty: l.qty,
-          unit_price_snapshot: l.unit_price_snapshot,
-          discount_snapshot: l.discount_snapshot,
+          unit_price_snapshot: l.price,
+          discount_snapshot: 0,
           line_total: l.line_total,
         })),
       };
