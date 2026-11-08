@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useCart, useCartStore } from "@/lib/cart";
 import { DEFAULT_VOLUME, resolveVariants } from "@/lib/variants";
-import { getCleanImageUrl, DEFAULT_PLACEHOLDER } from "@/lib/image-utils";
+import { getAllImageUrls, DEFAULT_PLACEHOLDER } from "@/lib/image-utils";
 
 export interface ProductPurchaseSectionProps {
   product: any;
@@ -17,7 +17,9 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
   const p = product ?? {};
   const title = p.title_en || p.title_ar || p.name || "AURA Fragrance";
   const description = p.description_en || p.description_ar || p.description || "";
-  const mainImageUrl = getCleanImageUrl(p);
+  const gallery = getAllImageUrls(p);
+  const [activeImg, setActiveImg] = useState(0);
+  const mainImageUrl = gallery[activeImg] ?? gallery[0] ?? DEFAULT_PLACEHOLDER;
 
   // Same pricing rule the server uses in createOrder (src/lib/variants.ts).
   const variants = resolveVariants(p).map((v) => ({ ...v, id: v.volume.toLowerCase() }));
@@ -62,6 +64,16 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
             e.currentTarget.src = DEFAULT_PLACEHOLDER;
           }}
         />
+        {gallery.length > 1 && (
+          <div className="absolute bottom-3 left-3 right-3 flex justify-center gap-2">
+            {gallery.map((g, i) => (
+              <button key={g} type="button" onClick={() => setActiveImg(i)} aria-label={`Image ${i + 1}`}
+                className={`h-12 w-10 overflow-hidden rounded-sm border ${i === activeImg ? "border-gold" : "border-white/20 opacity-70"}`}>
+                <img src={g} alt="" className="h-full w-full object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
         {product.is_featured && (
           <div className="absolute top-4 left-4 bg-gold text-ink text-xs font-bold px-3 py-1 rounded-sm uppercase tracking-widest shadow-xl">
             Featured
