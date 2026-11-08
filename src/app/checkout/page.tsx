@@ -2,6 +2,8 @@ import { getTranslations } from "next-intl/server";
 import { CheckoutForm } from "@/components/CheckoutForm";
 import { createClient } from "@supabase/supabase-js";
 
+export const dynamic = "force-dynamic";
+
 export default async function CheckoutPage() {
   const t = await getTranslations("checkout");
 
@@ -12,7 +14,7 @@ export default async function CheckoutPage() {
 
   if (supabaseUrl && supabaseKey) {
     try {
-      const supabase = createClient(supabaseUrl, supabaseKey);
+      const supabase = createClient(supabaseUrl, supabaseKey, { global: { fetch: (i, init) => fetch(i, { ...init, cache: "no-store" }) } });
       const { data: s } = await supabase
         .from("settings")
         .select("*")
