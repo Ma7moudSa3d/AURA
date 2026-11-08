@@ -5,6 +5,8 @@ import { getUser } from "@/lib/data";
 import { sendEmailDetailed, orderEmailHtml, OWNER, type OrderEmailData } from "@/lib/email";
 import { normVolume, pickVariant } from "@/lib/variants";
 import { couponDiscount, couponProblem } from "@/lib/coupon";
+import { toOfferLines, pocketPackDiscount } from "@/lib/offers";
+import { getCampaign } from "@/lib/campaign";
 
 type Fail = { ok: false; error: string };
 const fail = (error: string): Fail => ({ ok: false, error });
@@ -100,27 +102,33 @@ export async function createOrder(formData: FormData): Promise<{ ok: true; order
       };
     });
 
-    // ── Coupon + shipping ─────────────────────────────────
-    let discount = 0;
+    // ── Offers, coupon + shipping ─────────────────────────
+    const { data: settings } = await sb.from("settings").select("*").eq("id", 1).maybeSingle();
+    const offerLines = toOfferLines(wanted, byId);
+    // Pocket Pack is a campaign offer: applied automatically while the campaign is live.
+    const pack = getCampaign(settings) ? pocketPackDiscount(offerLines) : { discount: 0, sets: 0 };
+    const afterPack = Math.max(0, subtotal - pack.discount);
+
+    let couponOnly = 0;
     let freeShip = false;
     let appliedCode: string | null = null;
     let couponRow: any = null;
     if (couponCode) {
       const { data: c } = await sb.from("coupons").select("*").ilike("code", couponCode).eq("is_active", true).maybeSingle();
       if (!c) return fail("كود الخصم غير صالح / Invalid coupon");
-      const problem = couponProblem(c, subtotal);
+      const problem = couponProblem(c, afterPack, offerLines);
       if (problem) return fail(problem);
       if (c.first_order_only) {
         const { count } = await sb.from("orders").select("id", { count: "exact", head: true }).eq("user_id", user.id);
         if (count && count > 0) return fail("الكود للطلب الأول فقط / Coupon is for the first order only");
       }
       couponRow = c;
-      discount = couponDiscount(c, subtotal);
+      couponOnly = couponDiscount(c, afterPack, offerLines);
       freeShip = Boolean(c.free_shipping);
       appliedCode = c.code;
     }
+    const discount = Math.round((pack.discount + couponOnly) * 100) / 100;
 
-    const { data: settings } = await sb.from("settings").select("shipping_fee, free_shipping_threshold").eq("id", 1).maybeSingle();
     const shippingFee = Number(settings?.shipping_fee ?? 60);
     const freeThreshold = Number(settings?.free_shipping_threshold ?? 2000);
     const net = Math.max(0, subtotal - discount);
@@ -147,6 +155,10 @@ export async function createOrder(formData: FormData): Promise<{ ok: true; order
 
     const depositAmount = payment_method === "DEPOSIT" ? Math.round(total * 0.25) : 0;
     let orderNotes = notes;
+    if (pack.sets > 0) {
+      const line = `Pocket Pack offer x${pack.sets}: -${pack.discount} EGP`;
+      orderNotes = orderNotes ? `${orderNotes}\n${line}` : line;
+    }
     if (payment_method === "DEPOSIT") {
       const line = `Deposit 25%: ${depositAmount} EGP paid, ${total - depositAmount} EGP due on delivery`;
       orderNotes = orderNotes ? `${orderNotes}\n${line}` : line;

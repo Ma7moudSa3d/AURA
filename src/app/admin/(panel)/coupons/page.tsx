@@ -65,7 +65,7 @@ export default function CouponsPage() {
 
     const res = await adminCreateCoupon({
       code: codeUpper,
-      type: type === 'fixed' ? 'fixed' : 'percent',
+      type: (['fixed', 'BUNDLE_2X100_FREE50', 'BUNDLE_2X50_THIRD_HALF'].includes(type) ? type : 'percent') as any,
       value: numVal,
       expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
       max_uses: maxUses ? parseInt(maxUses) : null,
@@ -133,6 +133,8 @@ export default function CouponsPage() {
           >
             <option value="percent">Percent (%)</option>
             <option value="fixed">Fixed Amount (EGP)</option>
+            <option value="BUNDLE_2X100_FREE50">Offer: 2 x 100ML + a 50ML free</option>
+            <option value="BUNDLE_2X50_THIRD_HALF">Offer: 3 x 50ML, third at 50% off</option>
           </select>
           <input
             value={value}
@@ -140,7 +142,8 @@ export default function CouponsPage() {
             type="number"
             step="0.01"
             min="0"
-            placeholder="Value (e.g. 10)"
+            placeholder={type.startsWith('BUNDLE_') ? 'Value (not used for offers)' : 'Value (e.g. 10)'}
+            disabled={type.startsWith('BUNDLE_')}
             className="input bg-ink/50 border border-white/20 p-3 rounded text-cream"
           />
           <input
@@ -226,9 +229,9 @@ export default function CouponsPage() {
                       {c.code}
                       {c.is_active === false && <span className="ms-2 rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-normal text-cream/60">PAUSED</span>}
                     </td>
-                    <td className="p-3 uppercase text-xs text-cream/70">{c.type || 'percent'}</td>
+                    <td className="p-3 uppercase text-xs text-cream/70">{c.type === 'BUNDLE_2X100_FREE50' ? '2x100ML + 50ML free' : c.type === 'BUNDLE_2X50_THIRD_HALF' ? '3x50ML, 3rd -50%' : c.type || 'percent'}</td>
                     <td className="p-3 font-mono">
-                      {val} {c.type === 'fixed' ? 'EGP' : '%'}
+                      {String(c.type).startsWith('BUNDLE_') ? 'Offer' : `${val} ${c.type === 'fixed' ? 'EGP' : '%'}`}
                     </td>
                     <td className="p-3 text-xs space-y-1">
                       {c.free_shipping && <div className="text-green-400">🚚 Free Shipping</div>}

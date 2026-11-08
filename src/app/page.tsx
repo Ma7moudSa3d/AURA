@@ -7,6 +7,7 @@ import type { Product } from "@/lib/types";
 import { getSettings } from "@/lib/data";
 import { getCampaign } from "@/lib/campaign";
 import { CampaignHero } from "@/components/Campaign";
+import OffersSection from "@/components/OffersSection";
 
 export default async function Home() {
   const t = await getTranslations("home");
@@ -27,6 +28,8 @@ export default async function Home() {
         </Reveal>
       </section>
       )}
+
+      <OffersSection />
 
       {products.length > 0 && (
         <section className="container-x py-16">
