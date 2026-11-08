@@ -241,24 +241,17 @@ export async function saveSettings(fd: FormData): Promise<{ ok: boolean; error?:
 
     const sb = supabaseService();
 
-    // Campaign artwork: only touched when a new file is chosen (or "remove" is ticked).
+    // Campaign artwork is uploaded straight from the browser to Storage (see createCampaignUpload);
+    // here we only accept the resulting public URL, or clear it when "remove" is ticked.
     const images: Record<string, string | null> = {};
+    const publicPrefix = `${(process.env.NEXT_PUBLIC_SUPABASE_URL || "").replace(/\/+$/, "")}/storage/v1/object/public/product-images/campaign/`;
     for (const key of ["offer_image_100", "offer_image_50", "offer_image_pack"]) {
-      const f = fd.get(key);
-      if (f instanceof File && f.size > 0) {
-        if (!f.type.startsWith("image/") || f.size > 4 * 1024 * 1024) {
-          return { ok: false, error: "Offer images must be an image file under 4MB (upload one at a time)." };
-        }
-        const ext = (f.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "jpg";
-        const path = `campaign/${key}-${Date.now()}.${ext}`;
-        const { error: upErr } = await sb.storage.from("product-images").upload(path, Buffer.from(await f.arrayBuffer()), { contentType: f.type, upsert: false });
-        if (upErr) return { ok: false, error: `Could not upload ${key}: ${upErr.message}` };
-        images[key] = sb.storage.from("product-images").getPublicUrl(path).data.publicUrl;
-      } else if (fd.get(`remove_${key}`) !== null) {
-        images[key] = null;
-      }
+      const v = fd.get(key);
+      if (typeof v === "string" && v.startsWith(publicPrefix)) images[key] = v;
+      else if (fd.get(`remove_${key}`) !== null) images[key] = null;
     }
 
+    const stamp = new Date().toISOString();
     const { error } = await sb.from("settings").upsert({
       ...images,
       id: 1,
@@ -283,12 +276,18 @@ export async function saveSettings(fd: FormData): Promise<{ ok: boolean; error?:
       campaign_code: s("campaign_code")?.toUpperCase().replace(/[^A-Z0-9_-]/g, "") || null,
       campaign_headline_en: s("campaign_headline_en"),
       campaign_headline_ar: s("campaign_headline_ar"),
-      updated_at: new Date().toISOString(),
+      updated_at: stamp,
     }, { onConflict: "id" });
 
     if (error) {
       console.error("Save settings DB error:", error);
       return { ok: false, error: error.message };
+    }
+
+    // Make sure the row really changed (a silent no-op must never be reported as "saved").
+    const { data: check } = await sb.from("settings").select("updated_at").eq("id", 1).maybeSingle();
+    if (!check || new Date(check.updated_at).getTime() !== new Date(stamp).getTime()) {
+      return { ok: false, error: "Settings were not written to the database. Please try again." };
     }
 
     revalidatePath("/", "layout");
@@ -364,4 +363,20 @@ export async function adminToggleCoupon(id: string, active: boolean): Promise<{ 
   if (error) return { ok: false, error: error.message };
   revalidatePath("/admin/coupons");
   return { ok: true };
+}
+
+/** Signed upload slot so the browser can send a (large) image straight to Storage, bypassing the server-action body limit. */
+export async function createCampaignUpload(key: string, filename: string): Promise<{ ok: true; path: string; token: string; url: string } | { ok: false; error: string }> {
+  try {
+    await requireAdmin();
+    if (!["offer_image_100", "offer_image_50", "offer_image_pack"].includes(key)) return { ok: false, error: "Unknown image slot" };
+    const ext = (filename.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "jpg";
+    const path = `campaign/${key}-${Date.now()}.${ext}`;
+    const sb = supabaseService();
+    const { data, error } = await sb.storage.from("product-images").createSignedUploadUrl(path);
+    if (error || !data) return { ok: false, error: error?.message || "Could not prepare upload" };
+    return { ok: true, path, token: data.token, url: sb.storage.from("product-images").getPublicUrl(path).data.publicUrl };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || "Upload failed" };
+  }
 }
