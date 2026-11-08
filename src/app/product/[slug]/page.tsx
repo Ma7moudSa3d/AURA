@@ -6,7 +6,12 @@ import { getSettings } from "@/lib/data";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://qjwisnczaffrouaadqzg.supabase.co";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: { persistSession: false },
+  global: { fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }) },
+});
+
+export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ slug: string }> | { slug: string };
