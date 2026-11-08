@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import OffersSection from "@/components/OffersSection";
 import { ShopCampaignStrip } from "@/components/Campaign";
 import { supabaseServer } from "@/lib/supabase/server";
 import ProductCard from "@/components/ProductCard";
@@ -37,6 +38,7 @@ export default async function Shop({ searchParams }: { searchParams: SP }) {
     <div className="container-x py-12">
       <h1 className="h-display mb-8 text-center text-5xl">{t("title")}</h1>
       <ShopCampaignStrip />
+      <OffersSection contained />
       <form className="mb-10 grid gap-4 border border-white/5 bg-surface p-5 sm:grid-cols-2 lg:grid-cols-4" method="get">
         <input name="q" defaultValue={searchParams.q} placeholder={t("search")} className="input sm:col-span-2" />
         <select name="collection" defaultValue={searchParams.collection ?? ""} className="input">

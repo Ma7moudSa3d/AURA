@@ -304,20 +304,22 @@ export async function adminListCoupons() {
 }
 
 export async function adminCreateCoupon(input: {
-  code: string; type: "percent" | "fixed"; value: number; expires_at: string | null; max_uses: number | null;
+  code: string; type: "percent" | "fixed" | "BUNDLE_2X100_FREE50" | "BUNDLE_2X50_THIRD_HALF"; value: number; expires_at: string | null; max_uses: number | null;
   free_shipping: boolean; first_order_only: boolean;
 }): Promise<{ ok: boolean; error?: string }> {
   await requireAdmin();
   const p = z.object({
     code: z.string().trim().min(3).max(30).transform((s) => s.toUpperCase()),
-    type: z.enum(["percent", "fixed"]),
-    value: z.number().positive().max(100000),
+    type: z.enum(["percent", "fixed", "BUNDLE_2X100_FREE50", "BUNDLE_2X50_THIRD_HALF"]),
+    value: z.number().min(0).max(100000),
     expires_at: z.string().nullable(),
     max_uses: z.number().int().positive().nullable(),
     free_shipping: z.boolean(),
     first_order_only: z.boolean(),
   }).safeParse(input);
   if (!p.success) return { ok: false, error: "Invalid coupon data" };
+  const isBundle = p.data.type.startsWith("BUNDLE_");
+  if (!isBundle && p.data.value <= 0) return { ok: false, error: "Value must be greater than 0" };
 
   const sb = supabaseService();
   const base = { code: p.data.code, type: p.data.type, value: p.data.value, discount_percent: p.data.type === "percent" ? p.data.value : 0, discount_amount: p.data.type === "fixed" ? p.data.value : 0, expires_at: p.data.expires_at, max_uses: p.data.max_uses, is_active: true };

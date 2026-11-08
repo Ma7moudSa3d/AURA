@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useCampaign } from "@/components/Campaign";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { useCartStore } from "@/lib/cart-store";
 import { createOrder } from "@/app/actions/order";
 import { applyCouponAction } from "@/app/actions/coupon";
+import { pocketPackDiscount, type OfferLine } from "@/lib/offers";
 
 function IconTruck(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -133,8 +134,21 @@ export function CheckoutForm({
     return sum + itemPrice * qty;
   }, 0);
 
-  const discountAmount = appliedCoupon ? appliedCoupon.discount : 0;
+  // Pocket Pack (campaign offer) is applied automatically; coupons are calculated on what is left.
+  const offerLines: OfferLine[] = items.map((i: any) => ({
+    product_id: i.product_id,
+    volume: i.volume || "50ML",
+    qty: i.quantity ?? i.qty ?? 1,
+    unit: i.price ?? 0,
+  }));
+  const packDiscount = campaign ? pocketPackDiscount(offerLines).discount : 0;
+  const couponDiscountAmount = appliedCoupon ? appliedCoupon.discount : 0;
+  const discountAmount = packDiscount + couponDiscountAmount;
   const netSubtotal = Math.max(0, subtotal - discountAmount);
+
+  // A coupon result depends on the cart: drop it when the cart changes so the customer re-applies it.
+  const cartKey = JSON.stringify(offerLines);
+  useEffect(() => { setAppliedCoupon(null); }, [cartKey]);
   const currentShippingFee = netSubtotal >= freeThreshold || items.length === 0 ? 0 : shippingFee;
   const totalAmount = netSubtotal + currentShippingFee;
 
@@ -147,7 +161,11 @@ export function CheckoutForm({
     setIsApplyingCoupon(true);
     setCouponError(null);
     try {
-      const res: any = await applyCouponAction(couponCode.trim(), subtotal);
+      const res: any = await applyCouponAction(
+        couponCode.trim(),
+        subtotal,
+        items.map((i: any) => ({ product_id: i.product_id, volume: i.volume || "50ML", quantity: i.quantity ?? i.qty ?? 1 }))
+      );
       if ((res?.ok || res?.success) && res?.coupon) {
         setAppliedCoupon({
           id: res.coupon.id,
@@ -595,10 +613,16 @@ export function CheckoutForm({
                 <span>{subtotal} EGP</span>
               </div>
 
-              {discountAmount > 0 && (
+              {packDiscount > 0 && (
+                <div className="flex justify-between text-gold">
+                  <span>✦ {isAr ? "باكيدج الجيب" : "Pocket Pack"}</span>
+                  <span>-{packDiscount} EGP</span>
+                </div>
+              )}
+              {couponDiscountAmount > 0 && (
                 <div className="flex justify-between text-emerald-400">
-                  <span>{isAr ? "الخصم" : "Discount"}</span>
-                  <span>-{discountAmount} EGP</span>
+                  <span>{isAr ? "الخصم" : "Discount"} ({appliedCoupon?.code})</span>
+                  <span>-{couponDiscountAmount} EGP</span>
                 </div>
               )}
 

@@ -2,7 +2,8 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import { CampaignNote } from "@/components/Campaign";
+import { CampaignNote, useCampaign } from "@/components/Campaign";
+import { pocketPackDiscount } from "@/lib/offers";
 import Link from "next/link"
 import Image from "next/image"
 import { toStorageUrl, DEFAULT_PLACEHOLDER } from "@/lib/image-utils"
@@ -35,6 +36,10 @@ export default function CartDrawer({ loggedIn }: { loggedIn?: boolean }) {
   if (!mounted) return null
 
   const subtotal = cartSubtotal(items)
+  const campaign = useCampaign()
+  const packSaving = campaign
+    ? pocketPackDiscount(items.map((i: any) => ({ product_id: i.product_id, volume: i.volume || "50ML", qty: i.quantity ?? i.qty ?? 1, unit: i.price ?? 0 }))).discount
+    : 0
 
   return (
     <>
@@ -128,6 +133,12 @@ export default function CartDrawer({ loggedIn }: { loggedIn?: boolean }) {
         {items.length > 0 && (
           <div className="p-5 border-t border-white/10 bg-ink/50 space-y-4">
             <CampaignNote />
+            {packSaving > 0 && (
+              <div className="flex justify-between text-xs text-gold">
+                <span>✦ {locale === "ar" ? "وفّرت مع باكيدج الجيب" : "Pocket Pack saving"}</span>
+                <span>-{money(packSaving, locale)} {c("currency")}</span>
+              </div>
+            )}
             <div className="flex justify-between items-center text-sm font-serif">
               <span className="text-cream/70">{t("subtotal")}</span>
               <span className="font-bold text-gold text-lg">{money(subtotal, locale)} {c("currency")}</span>
