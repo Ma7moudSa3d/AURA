@@ -42,5 +42,6 @@ export function getProductImageUrl(product: any): string {
   if (!clean) return SVG_PLACEHOLDER;
 
   // تحويل الـ UUID أو اسم الملف إلى رابط Supabase المباشر والرسمي
-  return `https://qjwisnczaffrouaadgzq.supabase.co/storage/v1/object/public/products/${clean}`;
+  const base = (process.env.NEXT_PUBLIC_SUPABASE_URL || "https://qjwisnczaffrouaadqzg.supabase.co").replace(/\/+$/, "");
+  return `${base}/storage/v1/object/public/products/${clean}`;
 }
