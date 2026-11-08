@@ -1,5 +1,6 @@
 export const DEFAULT_PLACEHOLDER = "https://placehold.co/600x800/0a0a0a/C5A059?text=AURA+Fragrance";
-export const SUPABASE_STORAGE_URL = "https://qjwisnczaffrouaadgzq.supabase.co/storage/v1/object/public/products/";
+const SUPABASE_BASE = (process.env.NEXT_PUBLIC_SUPABASE_URL || "https://qjwisnczaffrouaadqzg.supabase.co").replace(/\/+$/, "");
+export const SUPABASE_STORAGE_URL = `${SUPABASE_BASE}/storage/v1/object/public/products/`;
 
 export function getCleanImageUrl(product: any): string {
   if (!product) return DEFAULT_PLACEHOLDER;
