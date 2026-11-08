@@ -30,11 +30,11 @@ const ProductCard: React.FC<ProductCardProps> = (props) => {
   return (
     <div className="group relative flex flex-col bg-ink border border-white/10 rounded-lg overflow-hidden transition-all duration-300 hover:border-gold/50 h-full">
       {/* صورة العطر */}
-      <Link href={productLink} className="relative block h-80 w-full shrink-0 overflow-hidden bg-surface">
+      <Link href={productLink} className="relative block aspect-[3/4] w-full shrink-0 overflow-hidden bg-surface md:aspect-auto md:h-80">
         <img
           src={imageUrl}
           alt={name}
-          className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
+          className="h-full w-full object-contain object-center transition-transform duration-500 group-hover:scale-105 md:object-cover"
           onError={(e) => {
             e.currentTarget.onerror = null; // يمنع حلقة التكرار اللانهائية
             e.currentTarget.src = DEFAULT_PLACEHOLDER;

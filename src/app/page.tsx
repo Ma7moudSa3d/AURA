@@ -25,7 +25,7 @@ export default async function Home() {
       {products.length > 0 && (
         <section className="container-x py-16">
           <Reveal><h2 className="h-display mb-10 text-center text-4xl">{t("featured")}</h2></Reveal>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-4 md:gap-6">
             {products.map((p, i) => <Reveal key={p.id} delay={i * 0.08}><ProductCard p={p} /></Reveal>)}
           </div>
         </section>
