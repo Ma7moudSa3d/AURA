@@ -55,15 +55,15 @@ export default function CartPage() {
                 return (
                   <div key={l.id || `${l.product_id}-${l.volume}`} className="flex gap-4 p-4 items-center">
                     <div className="relative h-24 w-20 shrink-0 bg-ink border border-white/10 overflow-hidden">
-                      {l.image ? (
-                        <Image src={l.image} alt={l.title_en || "Product"} fill sizes="80px" className="object-cover" />
+                      {(l.image || l.image_url) ? (
+                        <Image src={l.image || l.image_url} alt={l.title_en || l.name || "Product"} fill sizes="80px" className="object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-xs text-cream/40">AURA</div>
                       )}
                     </div>
 
                     <div className="flex-1">
-                      <h3 className="font-serif text-cream text-lg">{locale === "ar" ? (l.title_ar || l.title_en) : (l.title_en || l.title_ar)}</h3>
+                      <h3 className="font-serif text-cream text-lg">{locale === "ar" ? (l.title_ar || l.title_en || l.name || l.title) : (l.title_en || l.title_ar || l.name || l.title)}</h3>
                       <p className="text-xs uppercase tracking-wider text-gold mt-0.5">{l.volume}</p>
                       <p className="text-sm font-bold text-gold mt-1">{money(price, locale)} {c("currency")}</p>
                     </div>

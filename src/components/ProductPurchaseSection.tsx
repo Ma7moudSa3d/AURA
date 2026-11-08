@@ -1,44 +1,37 @@
 "use client";
 
 import React, { useState } from "react";
-import { useCart } from "@/lib/cart";
+import { useCart, useCartStore } from "@/lib/cart";
+import { DEFAULT_VOLUME, resolveVariants } from "@/lib/variants";
 import { getCleanImageUrl, DEFAULT_PLACEHOLDER } from "@/lib/image-utils";
 
 export interface ProductPurchaseSectionProps {
   product: any;
   locale?: string;
+  whatsapp?: string;
 }
 
-const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product }) => {
+const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product, whatsapp }) => {
   const { addItem } = useCart();
 
-  if (!product) return null;
+  const p = product ?? {};
+  const title = p.title_en || p.title_ar || p.name || "AURA Fragrance";
+  const description = p.description_en || p.description_ar || p.description || "";
+  const mainImageUrl = getCleanImageUrl(p);
 
-  const title = product.title_en || product.title_ar || product.name || "AURA Fragrance";
-  const description = product.description_en || product.description_ar || product.description || "";
-  const basePrice = Number(product.discount_price || product.price || 550);
+  // Same pricing rule the server uses in createOrder (src/lib/variants.ts).
+  const variants = resolveVariants(p).map((v) => ({ ...v, id: v.volume.toLowerCase() }));
 
-  const mainImageUrl = getCleanImageUrl(product);
-
-  const defaultVariants = [
-    { id: "5ml", volume: "5ML", price: Math.round(basePrice * 0.2) || 80 },
-    { id: "30ml", volume: "30ML", price: Math.round(basePrice * 0.65) || 350 },
-    { id: "50ml", volume: "50ML", price: basePrice },
-    { id: "100ml", volume: "100ML", price: Math.round(basePrice * 1.55) || 850 },
-  ];
-
-  const variants = Array.isArray(product.variants) && product.variants.length > 0
-    ? [...product.variants].sort((a, b) => (parseInt(a.volume) || 0) - (parseInt(b.volume) || 0))
-    : defaultVariants;
-
-  const [selectedVariant, setSelectedVariant] = useState(variants[2] || variants[0]);
+  const [selectedVariant, setSelectedVariant] = useState(variants.find((v) => v.volume === DEFAULT_VOLUME) ?? variants[0]);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
 
+  if (!product) return null;
+
   const handleAddToCart = () => {
     addItem({
-      id: `${product.id}-${selectedVariant.volume}`,
-      product_id: product.id,
+      id: `${p.id}-${selectedVariant.volume}`,
+      product_id: p.id,
       variant_id: selectedVariant.id,
       name: title,
       price: Number(selectedVariant.price),
@@ -48,8 +41,10 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
     });
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
+    useCartStore.getState().setOpen(true);
   };
 
+  const waNumber = String(whatsapp ?? "").replace(/\D/g, "");
   const whatsappMessage = encodeURIComponent(
     `Hello AURA Fragrances, I would like to order:\n*Product:* ${title}\n*Size:* ${selectedVariant.volume}\n*Price:* ${selectedVariant.price} EGP`
   );
@@ -57,7 +52,7 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-start">
       {/* صورة العطر الرئيسية */}
-      <div className="relative w-full aspect-[3/4] max-h-[600px] bg-zinc-900 rounded-lg overflow-hidden border border-zinc-800">
+      <div className="relative w-full aspect-[3/4] max-h-[600px] bg-surface rounded-lg overflow-hidden border border-white/10">
         <img
           src={mainImageUrl}
           alt={title}
@@ -68,7 +63,7 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
           }}
         />
         {product.is_featured && (
-          <div className="absolute top-4 left-4 bg-[#C5A059] text-black text-xs font-bold px-3 py-1 rounded-sm uppercase tracking-widest shadow-xl">
+          <div className="absolute top-4 left-4 bg-gold text-ink text-xs font-bold px-3 py-1 rounded-sm uppercase tracking-widest shadow-xl">
             Featured
           </div>
         )}
@@ -77,17 +72,17 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
       {/* تفاصيل المنتج والخيارات */}
       <div className="flex flex-col space-y-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-serif text-white uppercase tracking-wider mb-2">
+          <h1 className="text-2xl md:text-3xl font-serif text-cream uppercase tracking-wider mb-2">
             {title}
           </h1>
-          <p className="text-2xl font-bold text-[#D4AF37]">
+          <p className="text-2xl font-bold text-gold">
             {selectedVariant.price} EGP
           </p>
         </div>
 
         {/* خيارات الأحجام */}
         <div>
-          <label className="block text-xs uppercase tracking-widest text-zinc-400 mb-3">
+          <label className="block text-xs uppercase tracking-widest text-cream/60 mb-3">
             Select Size / السعة :
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -100,12 +95,12 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
                   onClick={() => setSelectedVariant(v)}
                   className={`py-3 px-2 rounded-sm border text-center transition-all ${
                     isSelected
-                      ? "border-[#C5A059] bg-[#C5A059]/10 text-white shadow-lg"
-                      : "border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700 hover:text-white"
+                      ? "border-gold bg-gold/10 text-cream shadow-lg"
+                      : "border-white/10 bg-surface/50 text-cream/60 hover:border-white/15 hover:text-cream"
                   }`}
                 >
                   <div className="text-xs font-bold uppercase">{v.volume}</div>
-                  <div className="text-[10px] text-[#D4AF37] mt-1">{v.price} EGP</div>
+                  <div className="text-[10px] text-gold mt-1">{v.price} EGP</div>
                 </button>
               );
             })}
@@ -114,8 +109,8 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
 
         {/* وصف العطر */}
         {description && (
-          <div className="border-t border-zinc-800/80 pt-4">
-            <p className="text-xs text-zinc-300 leading-relaxed font-light">
+          <div className="border-t border-white/10 pt-4">
+            <p className="text-xs text-cream/70 leading-relaxed font-light">
               {description}
             </p>
           </div>
@@ -124,20 +119,20 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
         {/* أزرار السلة والواتساب */}
         <div className="space-y-3 pt-2">
           <div className="flex items-center space-x-3 rtl:space-x-reverse mb-4">
-            <span className="text-xs uppercase tracking-widest text-zinc-400">Quantity:</span>
-            <div className="flex items-center border border-zinc-800 bg-zinc-900 rounded-sm">
+            <span className="text-xs uppercase tracking-widest text-cream/60">Quantity:</span>
+            <div className="flex items-center border border-white/10 bg-surface rounded-sm">
               <button
                 type="button"
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="px-3 py-1 text-zinc-400 hover:text-white text-sm font-bold"
+                className="px-3 py-1 text-cream/60 hover:text-cream text-sm font-bold"
               >
                 -
               </button>
-              <span className="px-4 py-1 text-xs text-white font-medium">{quantity}</span>
+              <span className="px-4 py-1 text-xs text-cream font-medium">{quantity}</span>
               <button
                 type="button"
                 onClick={() => setQuantity(quantity + 1)}
-                className="px-3 py-1 text-zinc-400 hover:text-white text-sm font-bold"
+                className="px-3 py-1 text-cream/60 hover:text-cream text-sm font-bold"
               >
                 +
               </button>
@@ -149,21 +144,23 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
             onClick={handleAddToCart}
             className={`w-full py-3.5 px-6 font-bold uppercase tracking-widest text-xs transition-all duration-300 rounded-sm shadow-md ${
               added
-                ? "bg-green-600 text-white"
-                : "bg-[#C5A059] text-black hover:bg-[#D4AF37]"
+                ? "bg-gold2 text-ink"
+                : "bg-gold text-ink hover:brightness-110"
             }`}
           >
             {added ? "ADDED TO BAG ✓" : `ADD TO BAG (${selectedVariant.volume})`}
           </button>
 
+          {waNumber && (
           <a
-            href={`https://wa.me/201111111111?text=${whatsappMessage}`}
+            href={`https://wa.me/${waNumber}?text=${whatsappMessage}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full py-3 px-6 bg-transparent border border-zinc-800 text-zinc-300 hover:border-[#C5A059] hover:text-[#C5A059] font-medium text-xs uppercase tracking-widest transition-all text-center flex items-center justify-center gap-2 rounded-sm"
+            className="w-full py-3 px-6 bg-transparent border border-white/10 text-cream/70 hover:border-gold hover:text-gold font-medium text-xs uppercase tracking-widest transition-all text-center flex items-center justify-center gap-2 rounded-sm"
           >
             💬 Chat on WhatsApp
           </a>
+          )}
         </div>
       </div>
     </div>

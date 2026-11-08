@@ -31,7 +31,7 @@ export default function ReviewForm({
   // 2. العميل مسجل دخول بس لا يملك أوردر مستلم للمنتج ده
   if (!canReview) {
     return (
-      <div className="mt-6 border border-amber-500/20 bg-amber-500/5 p-4 rounded text-xs text-amber-400/90 text-center">
+      <div className="mt-6 border border-gold/20 bg-gold/5 p-4 rounded text-xs text-gold/90 text-center">
         🛒 التقييم متاح حصرياً للعملاء الذين قاموا بشراء هذا المنتج واستلامه بالفعل.
       </div>
     );
@@ -70,7 +70,7 @@ export default function ReviewForm({
       <select
         value={rating}
         onChange={(e) => setRating(Number(e.target.value))}
-        className="input w-28 bg-black/60 text-gold"
+        className="input w-28 bg-ink/60 text-gold"
       >
         {[5, 4, 3, 2, 1].map((n) => (
           <option key={n} value={n}>
@@ -86,7 +86,7 @@ export default function ReviewForm({
         rows={3}
         required
         placeholder="اكتب انطباعك عن العطر..."
-        className="input w-full bg-black/50 border border-white/20 p-3 text-white rounded text-sm"
+        className="input w-full bg-ink/50 border border-white/20 p-3 text-cream rounded text-sm"
       />
 
       <button

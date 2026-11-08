@@ -48,7 +48,7 @@ export default function SettingsForm({ initialSettings: s }: SettingsFormProps) 
         name={name}
         type={type}
         defaultValue={def ?? ""}
-        className="input w-full bg-surface border border-white/10 px-4 py-3 rounded text-white focus:border-gold outline-none"
+        className="input w-full bg-surface border border-white/10 px-4 py-3 rounded text-cream focus:border-gold outline-none"
         step={type === "number" ? "0.01" : undefined}
       />
     </div>
@@ -73,7 +73,7 @@ export default function SettingsForm({ initialSettings: s }: SettingsFormProps) 
         <h3 className="text-gold h-display text-lg mb-4 border-b border-white/10 pb-2">Payment Methods</h3>
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="flex items-center justify-between bg-surface border border-white/10 px-4 py-3 rounded">
-            <label className="label text-xs uppercase tracking-widest text-white cursor-pointer" htmlFor="enable_cod">
+            <label className="label text-xs uppercase tracking-widest text-cream cursor-pointer" htmlFor="enable_cod">
               Cash on Delivery
             </label>
             <input
@@ -87,7 +87,7 @@ export default function SettingsForm({ initialSettings: s }: SettingsFormProps) 
           </div>
 
           <div className="flex items-center justify-between bg-surface border border-white/10 px-4 py-3 rounded">
-            <label className="label text-xs uppercase tracking-widest text-white cursor-pointer" htmlFor="enable_instapay">
+            <label className="label text-xs uppercase tracking-widest text-cream cursor-pointer" htmlFor="enable_instapay">
               InstaPay (Full)
             </label>
             <input
@@ -101,7 +101,7 @@ export default function SettingsForm({ initialSettings: s }: SettingsFormProps) 
           </div>
 
           <div className="flex items-center justify-between bg-surface border border-white/10 px-4 py-3 rounded">
-            <label className="label text-xs uppercase tracking-widest text-white cursor-pointer" htmlFor="enable_deposit">
+            <label className="label text-xs uppercase tracking-widest text-cream cursor-pointer" htmlFor="enable_deposit">
               25% Deposit
             </label>
             <input
@@ -139,14 +139,14 @@ export default function SettingsForm({ initialSettings: s }: SettingsFormProps) 
           name="announcement_ar"
           dir="rtl"
           defaultValue={s?.announcement_ar ?? ""}
-          className="input w-full bg-surface border border-white/10 px-4 py-3 rounded text-white focus:border-gold outline-none"
+          className="input w-full bg-surface border border-white/10 px-4 py-3 rounded text-cream focus:border-gold outline-none"
         />
       </div>
 
       <button
         type="submit"
         disabled={isPending}
-        className="btn-gold sm:col-span-2 mt-4 py-3 px-6 bg-gold text-black font-bold uppercase tracking-wider rounded hover:bg-gold/90 transition-all disabled:opacity-50 cursor-pointer"
+        className="btn-gold sm:col-span-2 mt-4 py-3 px-6 bg-gold text-ink font-bold uppercase tracking-wider rounded hover:bg-gold/90 transition-all disabled:opacity-50 cursor-pointer"
       >
         {isPending ? "SAVING..." : "SAVE SETTINGS"}
       </button>

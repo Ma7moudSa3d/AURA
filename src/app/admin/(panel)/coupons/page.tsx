@@ -1,11 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://qjwisnczaffrouaadqzg.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { adminListCoupons, adminCreateCoupon, adminDeleteCoupon } from '@/app/actions/admin';
 
 type Coupon = {
   id: string;
@@ -39,8 +35,11 @@ export default function CouponsPage() {
 
   const fetchCoupons = async () => {
     setLoading(true);
-    const { data } = await supabase.from('coupons').select('*').order('code');
-    setCoupons(data || []);
+    try {
+      setCoupons((await adminListCoupons()) as Coupon[]);
+    } catch (e) {
+      console.error('Failed to load coupons', e);
+    }
     setLoading(false);
   };
 
@@ -64,21 +63,16 @@ export default function CouponsPage() {
     const numVal = parseFloat(value || '0');
     const codeUpper = code.trim().toUpperCase();
 
-    const payload = {
+    const res = await adminCreateCoupon({
       code: codeUpper,
-      type: type,
+      type: type === 'fixed' ? 'fixed' : 'percent',
       value: numVal,
-      discount_percent: type === 'percent' ? numVal : 0,
-      discount_amount: type === 'fixed' ? numVal : 0,
       expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
       max_uses: maxUses ? parseInt(maxUses) : null,
       free_shipping: freeShipping,
       first_order_only: firstOrderOnly,
-      is_active: true,
-      used_count: 0,
-    };
-
-    const { error } = await supabase.from('coupons').insert(payload);
+    });
+    const error = res.ok ? null : { message: res.error };
     setSaving(false);
 
     if (error) {
@@ -97,24 +91,26 @@ export default function CouponsPage() {
 
   const handleDeleteCoupon = async (id: string, codeName: string) => {
     if (!confirm(`Are you sure you want to delete coupon "${codeName}"?`)) return;
-    const { error } = await supabase.from('coupons').delete().eq('id', id);
-    if (!error) {
+    const res = await adminDeleteCoupon(id);
+    if (res.ok) {
       showToast('Coupon deleted!');
       fetchCoupons();
+    } else {
+      alert('Error deleting coupon: ' + res.error);
     }
   };
 
   return (
-    <div className="space-y-8 text-white max-w-6xl mx-auto p-4">
+    <div className="space-y-8 text-cream max-w-6xl mx-auto p-4">
       {toastMessage && (
-        <div className="fixed top-5 right-5 z-50 bg-amber-600 text-black px-4 py-2 rounded font-semibold shadow-lg">
+        <div className="fixed top-5 right-5 z-50 bg-gold2 text-ink px-4 py-2 rounded font-semibold shadow-lg">
           {toastMessage}
         </div>
       )}
 
       {/* Form */}
       <form onSubmit={handleSaveCoupon} className="border border-white/10 bg-surface p-5 space-y-4 rounded">
-        <h3 className="text-amber-500 font-bold text-lg border-b border-white/10 pb-2">Create New Coupon</h3>
+        <h3 className="text-gold font-bold text-lg border-b border-white/10 pb-2">Create New Coupon</h3>
 
         <div className="grid gap-3 sm:grid-cols-5">
           <input
@@ -122,12 +118,12 @@ export default function CouponsPage() {
             onChange={(e) => setCode(e.target.value.toUpperCase())}
             required
             placeholder="CODE (e.g. AURAFIRST)"
-            className="input uppercase bg-black/50 border border-white/20 p-3 rounded text-white"
+            className="input uppercase bg-ink/50 border border-white/20 p-3 rounded text-cream"
           />
           <select
             value={type}
             onChange={(e) => setType(e.target.value)}
-            className="input bg-black/50 border border-white/20 p-3 rounded text-white"
+            className="input bg-ink/50 border border-white/20 p-3 rounded text-cream"
           >
             <option value="percent">Percent (%)</option>
             <option value="fixed">Fixed Amount (EGP)</option>
@@ -139,13 +135,13 @@ export default function CouponsPage() {
             step="0.01"
             min="0"
             placeholder="Value (e.g. 10)"
-            className="input bg-black/50 border border-white/20 p-3 rounded text-white"
+            className="input bg-ink/50 border border-white/20 p-3 rounded text-cream"
           />
           <input
             value={expiresAt}
             onChange={(e) => setExpiresAt(e.target.value)}
             type="datetime-local"
-            className="input bg-black/50 border border-white/20 p-3 rounded text-white"
+            className="input bg-ink/50 border border-white/20 p-3 rounded text-cream"
           />
           <input
             value={maxUses}
@@ -153,28 +149,28 @@ export default function CouponsPage() {
             type="number"
             min="1"
             placeholder="Max uses"
-            className="input bg-black/50 border border-white/20 p-3 rounded text-white"
+            className="input bg-ink/50 border border-white/20 p-3 rounded text-cream"
           />
         </div>
 
         {/* Extra Options */}
         <div className="flex flex-wrap gap-6 pt-2">
-          <label className="flex items-center gap-2 cursor-pointer text-sm text-amber-400">
+          <label className="flex items-center gap-2 cursor-pointer text-sm text-gold">
             <input
               type="checkbox"
               checked={freeShipping}
               onChange={(e) => setFreeShipping(e.target.checked)}
-              className="w-4 h-4 accent-amber-500 cursor-pointer"
+              className="w-4 h-4 accent-gold cursor-pointer"
             />
             🚚 Free Shipping (إلغاء مصاريف الشحن)
           </label>
 
-          <label className="flex items-center gap-2 cursor-pointer text-sm text-amber-400">
+          <label className="flex items-center gap-2 cursor-pointer text-sm text-gold">
             <input
               type="checkbox"
               checked={firstOrderOnly}
               onChange={(e) => setFirstOrderOnly(e.target.checked)}
-              className="w-4 h-4 accent-amber-500 cursor-pointer"
+              className="w-4 h-4 accent-gold cursor-pointer"
             />
             🎉 First Order Only (للطلب الأول فقط لكل عميل)
           </label>
@@ -183,7 +179,7 @@ export default function CouponsPage() {
         <button
           type="submit"
           disabled={saving}
-          className="w-full bg-amber-600 hover:bg-amber-500 text-black font-bold p-3 uppercase tracking-wider rounded transition disabled:opacity-50"
+          className="w-full bg-gold2 hover:bg-gold text-ink font-bold p-3 uppercase tracking-wider rounded transition disabled:opacity-50"
         >
           {saving ? 'SAVING...' : 'SAVE COUPON'}
         </button>
@@ -192,7 +188,7 @@ export default function CouponsPage() {
       {/* Table */}
       <div className="overflow-x-auto border border-white/10 bg-surface rounded">
         <table className="w-full text-sm text-left">
-          <thead className="text-xs uppercase tracking-widest text-amber-500/70 border-b border-white/10 bg-black/30">
+          <thead className="text-xs uppercase tracking-widest text-gold/70 border-b border-white/10 bg-ink/30">
             <tr>
               <th className="p-3">Code</th>
               <th className="p-3">Type</th>
@@ -205,13 +201,13 @@ export default function CouponsPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="p-6 text-center text-white/50">
+                <td colSpan={6} className="p-6 text-center text-cream/50">
                   Loading coupons...
                 </td>
               </tr>
             ) : coupons.length === 0 ? (
               <tr>
-                <td colSpan={6} className="p-6 text-center text-white/50 italic">
+                <td colSpan={6} className="p-6 text-center text-cream/50 italic">
                   No coupons found.
                 </td>
               </tr>
@@ -220,15 +216,15 @@ export default function CouponsPage() {
                 const val = c.value ?? c.discount_percent ?? c.discount_amount ?? 0;
                 return (
                   <tr key={c.id} className="border-t border-white/5 hover:bg-white/5">
-                    <td className="p-3 font-mono font-bold text-amber-400">{c.code}</td>
-                    <td className="p-3 uppercase text-xs text-white/70">{c.type || 'percent'}</td>
+                    <td className="p-3 font-mono font-bold text-gold">{c.code}</td>
+                    <td className="p-3 uppercase text-xs text-cream/70">{c.type || 'percent'}</td>
                     <td className="p-3 font-mono">
                       {val} {c.type === 'fixed' ? 'EGP' : '%'}
                     </td>
                     <td className="p-3 text-xs space-y-1">
                       {c.free_shipping && <div className="text-green-400">🚚 Free Shipping</div>}
-                      {c.first_order_only && <div className="text-amber-400">🎉 First Order Only</div>}
-                      {!c.free_shipping && !c.first_order_only && <div className="text-white/40">—</div>}
+                      {c.first_order_only && <div className="text-gold">🎉 First Order Only</div>}
+                      {!c.free_shipping && !c.first_order_only && <div className="text-cream/40">—</div>}
                     </td>
                     <td className="p-3 font-mono">
                       {c.used_count ?? 0} / {c.max_uses ?? '∞'}
@@ -236,7 +232,7 @@ export default function CouponsPage() {
                     <td className="p-3 text-right">
                       <button
                         onClick={() => handleDeleteCoupon(c.id, c.code)}
-                        className="px-3 py-1 bg-red-600/80 hover:bg-red-600 text-white rounded text-xs font-semibold"
+                        className="px-3 py-1 bg-red-600/80 hover:bg-red-600 text-cream rounded text-xs font-semibold"
                       >
                         Delete
                       </button>

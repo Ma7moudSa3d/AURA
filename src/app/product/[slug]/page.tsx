@@ -1,6 +1,7 @@
 import React from "react";
 import { createClient } from "@supabase/supabase-js";
 import ProductPurchaseSection from "@/components/ProductPurchaseSection";
+import { getSettings } from "@/lib/data";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://qjwisnczaffrouaadqzg.supabase.co";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
@@ -17,8 +18,8 @@ export default async function ProductPage({ params }: Props) {
 
   if (!slugOrId) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] px-6 text-center text-white">
-        <h1 className="font-serif text-3xl text-[#C5A059]">Fragrance Not Found</h1>
+      <div className="flex min-h-screen items-center justify-center bg-ink px-6 text-center text-cream">
+        <h1 className="font-serif text-3xl text-gold">Fragrance Not Found</h1>
       </div>
     );
   }
@@ -42,12 +43,12 @@ export default async function ProductPage({ params }: Props) {
 
   if (!product) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-[#0A0A0A] px-6 text-center text-white">
-        <h1 className="font-serif text-3xl text-[#C5A059]">Fragrance Not Found</h1>
-        <p className="mt-3 text-sm text-zinc-500">Product: {slugOrId}</p>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-ink px-6 text-center text-cream">
+        <h1 className="font-serif text-3xl text-gold">Fragrance Not Found</h1>
+        <p className="mt-3 text-sm text-cream/50">Product: {slugOrId}</p>
         <a
           href="/shop"
-          className="mt-6 border border-[#C5A059] px-6 py-3 text-xs font-bold uppercase tracking-[0.22em] text-[#C5A059] transition-all hover:bg-[#C5A059] hover:text-black"
+          className="mt-6 border border-gold px-6 py-3 text-xs font-bold uppercase tracking-[0.22em] text-gold transition-all hover:bg-gold hover:text-ink"
         >
           Return To Collection
         </a>
@@ -56,9 +57,9 @@ export default async function ProductPage({ params }: Props) {
   }
 
   return (
-    <main className="min-h-screen bg-[#0A0A0A] pt-24 text-white">
+    <main className="min-h-screen bg-ink pt-24 text-cream">
       <div className="mx-auto max-w-7xl px-4 pb-16 md:px-8">
-        <ProductPurchaseSection product={product} />
+        <ProductPurchaseSection product={product} whatsapp={(await getSettings())?.whatsapp_number} />
       </div>
     </main>
   );

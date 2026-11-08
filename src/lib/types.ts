@@ -1,10 +1,9 @@
 // src/lib/types.ts
 
 export const ORDER_STATUSES = [
-  "PENDING",
-  "CONFIRMED",
+  "PENDING_PAYMENT_VERIFICATION",
   "PAID",
-  "PROCESSING",
+  "CONFIRMED",
   "SHIPPED",
   "DELIVERED",
   "CANCELED",

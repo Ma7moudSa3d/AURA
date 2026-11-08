@@ -97,7 +97,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
             name="title_en"
             defaultValue={product?.title_en || ""}
             required
-            className="w-full bg-surface border border-white/10 px-3 py-2 text-white focus:border-gold outline-none"
+            className="w-full bg-surface border border-white/10 px-3 py-2 text-cream focus:border-gold outline-none"
           />
         </div>
         <div>
@@ -107,7 +107,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
             name="title_ar"
             defaultValue={product?.title_ar || ""}
             required
-            className="w-full bg-surface border border-white/10 px-3 py-2 text-white focus:border-gold outline-none text-right"
+            className="w-full bg-surface border border-white/10 px-3 py-2 text-cream focus:border-gold outline-none text-right"
           />
         </div>
       </div>
@@ -120,7 +120,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
             name="slug"
             defaultValue={product?.slug || ""}
             required
-            className="w-full bg-surface border border-white/10 px-3 py-2 text-white focus:border-gold outline-none"
+            className="w-full bg-surface border border-white/10 px-3 py-2 text-cream focus:border-gold outline-none"
           />
         </div>
         <div>
@@ -128,7 +128,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
           <select
             name="gender"
             defaultValue={product?.gender || "unisex"}
-            className="w-full bg-surface border border-white/10 px-3 py-2 text-white focus:border-gold outline-none"
+            className="w-full bg-surface border border-white/10 px-3 py-2 text-cream focus:border-gold outline-none"
           >
             <option value="unisex">Unisex (جنسين)</option>
             <option value="men">Men (رجالي)</option>
@@ -141,7 +141,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
             type="text"
             name="collection"
             defaultValue={product?.collection || "Luxury Collection"}
-            className="w-full bg-surface border border-white/10 px-3 py-2 text-white focus:border-gold outline-none"
+            className="w-full bg-surface border border-white/10 px-3 py-2 text-cream focus:border-gold outline-none"
           />
         </div>
       </div>
@@ -159,7 +159,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
           <button
             type="button"
             onClick={addVariant}
-            className="px-3 py-1.5 bg-gold text-ink font-bold text-xs uppercase hover:bg-gold-light transition rounded"
+            className="px-3 py-1.5 bg-gold text-ink font-bold text-xs uppercase hover:brightness-110 transition rounded"
           >
             + Add Size (إضافة سعة)
           </button>
@@ -175,7 +175,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
                   value={v.volume}
                   placeholder="e.g. 50ml"
                   onChange={(e) => updateVariant(index, "volume", e.target.value)}
-                  className="w-full bg-ink border border-white/10 px-2 py-1 text-xs text-white focus:border-gold outline-none"
+                  className="w-full bg-ink border border-white/10 px-2 py-1 text-xs text-cream focus:border-gold outline-none"
                 />
               </div>
               <div className="w-1/2 md:w-1/4">
@@ -184,7 +184,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
                   type="number"
                   value={v.price}
                   onChange={(e) => updateVariant(index, "price", Number(e.target.value))}
-                  className="w-full bg-ink border border-white/10 px-2 py-1 text-xs text-white focus:border-gold outline-none"
+                  className="w-full bg-ink border border-white/10 px-2 py-1 text-xs text-cream focus:border-gold outline-none"
                 />
               </div>
               <div className="w-1/2 md:w-1/4">
@@ -194,7 +194,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
                   value={v.discount_price ?? ""}
                   placeholder="اختياري"
                   onChange={(e) => updateVariant(index, "discount_price", e.target.value ? Number(e.target.value) : null)}
-                  className="w-full bg-ink border border-white/10 px-2 py-1 text-xs text-white focus:border-gold outline-none"
+                  className="w-full bg-ink border border-white/10 px-2 py-1 text-xs text-cream focus:border-gold outline-none"
                 />
               </div>
               <div className="w-1/2 md:w-1/5">
@@ -203,7 +203,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
                   type="number"
                   value={v.stock_qty ?? 10}
                   onChange={(e) => updateVariant(index, "stock_qty", Number(e.target.value))}
-                  className="w-full bg-ink border border-white/10 px-2 py-1 text-xs text-white focus:border-gold outline-none"
+                  className="w-full bg-ink border border-white/10 px-2 py-1 text-xs text-cream focus:border-gold outline-none"
                 />
               </div>
               {variants.length > 1 && (
@@ -228,7 +228,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
             name="stock_qty"
             defaultValue={product?.stock_qty || 25}
             required
-            className="w-full bg-surface border border-white/10 px-3 py-2 text-white focus:border-gold outline-none"
+            className="w-full bg-surface border border-white/10 px-3 py-2 text-cream focus:border-gold outline-none"
           />
         </div>
         <div>
@@ -238,7 +238,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
             name="low_stock_threshold"
             defaultValue={product?.low_stock_threshold || 5}
             required
-            className="w-full bg-surface border border-white/10 px-3 py-2 text-white focus:border-gold outline-none"
+            className="w-full bg-surface border border-white/10 px-3 py-2 text-cream focus:border-gold outline-none"
           />
         </div>
       </div>
@@ -250,7 +250,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
             name="description_en"
             rows={4}
             defaultValue={product?.description_en || ""}
-            className="w-full bg-surface border border-white/10 p-3 text-white focus:border-gold outline-none"
+            className="w-full bg-surface border border-white/10 p-3 text-cream focus:border-gold outline-none"
           />
         </div>
         <div>
@@ -259,7 +259,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
             name="description_ar"
             rows={4}
             defaultValue={product?.description_ar || ""}
-            className="w-full bg-surface border border-white/10 p-3 text-white focus:border-gold outline-none text-right"
+            className="w-full bg-surface border border-white/10 p-3 text-cream focus:border-gold outline-none text-right"
           />
         </div>
       </div>
@@ -272,7 +272,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
             name="top_notes"
             defaultValue={product?.notes?.top_notes?.join(", ") || ""}
             placeholder="Mango, Ginger, Lemon"
-            className="w-full bg-surface border border-white/10 px-3 py-2 text-white text-xs focus:border-gold outline-none"
+            className="w-full bg-surface border border-white/10 px-3 py-2 text-cream text-xs focus:border-gold outline-none"
           />
         </div>
         <div>
@@ -282,7 +282,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
             name="heart_notes"
             defaultValue={product?.notes?.heart_notes?.join(", ") || ""}
             placeholder="Jasmine, Coumarin"
-            className="w-full bg-surface border border-white/10 px-3 py-2 text-white text-xs focus:border-gold outline-none"
+            className="w-full bg-surface border border-white/10 px-3 py-2 text-cream text-xs focus:border-gold outline-none"
           />
         </div>
         <div>
@@ -292,7 +292,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
             name="base_notes"
             defaultValue={product?.notes?.base_notes?.join(", ") || ""}
             placeholder="Amber, Musk, Oud"
-            className="w-full bg-surface border border-white/10 px-3 py-2 text-white text-xs focus:border-gold outline-none"
+            className="w-full bg-surface border border-white/10 px-3 py-2 text-cream text-xs focus:border-gold outline-none"
           />
         </div>
       </div>
@@ -304,7 +304,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
             type="text"
             name="volume"
             defaultValue={product?.volume || "50ml"}
-            className="w-full bg-surface border border-white/10 px-3 py-2 text-white focus:border-gold outline-none"
+            className="w-full bg-surface border border-white/10 px-3 py-2 text-cream focus:border-gold outline-none"
           />
         </div>
         <div>
@@ -313,7 +313,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
             type="text"
             name="concentration"
             defaultValue={product?.concentration || "Eau de Parfum"}
-            className="w-full bg-surface border border-white/10 px-3 py-2 text-white focus:border-gold outline-none"
+            className="w-full bg-surface border border-white/10 px-3 py-2 text-cream focus:border-gold outline-none"
           />
         </div>
         <div>
@@ -323,7 +323,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
             name="tags"
             defaultValue={product?.tags?.join(", ") || ""}
             placeholder="Mango, Tropical, Niche"
-            className="w-full bg-surface border border-white/10 px-3 py-2 text-white focus:border-gold outline-none"
+            className="w-full bg-surface border border-white/10 px-3 py-2 text-cream focus:border-gold outline-none"
           />
         </div>
       </div>
@@ -363,7 +363,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
                 <button
                   type="button"
                   onClick={() => handleDeleteImg(img.id)}
-                  className="absolute inset-0 bg-red-900/80 text-white font-bold text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                  className="absolute inset-0 bg-red-900/80 text-cream font-bold text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
                 >
                   Delete
                 </button>
@@ -387,7 +387,7 @@ export default function ProductFormClient({ product }: ProductFormClientProps) {
       <button
         type="submit"
         disabled={loading}
-        className="w-full py-3 bg-gold text-ink font-bold text-sm tracking-widest uppercase hover:bg-gold-light transition disabled:opacity-50"
+        className="w-full py-3 bg-gold text-ink font-bold text-sm tracking-widest uppercase hover:brightness-110 transition disabled:opacity-50"
       >
         {loading ? "Saving..." : product?.id ? "UPDATE PRODUCT" : "CREATE PRODUCT"}
       </button>

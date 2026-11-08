@@ -52,8 +52,8 @@ export default function AddToCart({
           stock <= 0
             ? "bg-white/10 text-cream/40 cursor-not-allowed"
             : added
-            ? "bg-emerald-600 text-white"
-            : "bg-gold text-ink hover:bg-gold-light shadow-md hover:shadow-gold/20"
+            ? "bg-gold2 text-ink"
+            : "bg-gold text-ink hover:brightness-110 shadow-md hover:shadow-glow"
         }`
       }
     >

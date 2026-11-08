@@ -5,7 +5,7 @@ import React, { useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { useLocale, useTranslations } from "next-intl"
-import { useCart, cartSubtotal, CartItem } from "@/lib/cart-store"
+import { useCart, useCartStore, cartSubtotal, CartItem } from "@/lib/cart-store"
 import { money } from "@/lib/format"
 
 export default function CartDrawer({ loggedIn }: { loggedIn?: boolean }) {
@@ -13,9 +13,11 @@ export default function CartDrawer({ loggedIn }: { loggedIn?: boolean }) {
   const t = useTranslations("cart")
   const c = useTranslations("common")
   const [mounted, setMounted] = useState(false)
-  const [isOpen, setIsOpen] = useState(false)
 
   const cart = useCart()
+  // The header's bag button opens the drawer through the shared store (isOpen/setOpen).
+  const isOpen: boolean = !!cart?.isOpen
+  const setIsOpen = (open: boolean) => useCartStore.getState().setOpen(open)
   const items: CartItem[] = Array.isArray(cart) ? cart[0] : cart?.items || []
   const removeItem = cart?.removeItem || cart?.removeFromCart || (() => {})
   const updateQty = cart?.updateQty || cart?.updateQuantity || (() => {})
@@ -23,7 +25,7 @@ export default function CartDrawer({ loggedIn }: { loggedIn?: boolean }) {
   useEffect(() => {
     setMounted(true)
 
-    const handleOpen = () => setIsOpen(true)
+    const handleOpen = () => useCartStore.getState().setOpen(true)
     window.addEventListener("aura_open_cart", handleOpen)
     return () => window.removeEventListener("aura_open_cart", handleOpen)
   }, [])
@@ -38,7 +40,7 @@ export default function CartDrawer({ loggedIn }: { loggedIn?: boolean }) {
       {isOpen && (
         <div
           onClick={() => setIsOpen(false)}
-          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm transition-opacity"
+          className="fixed inset-0 z-50 bg-ink/70 backdrop-blur-sm transition-opacity"
         />
       )}
 
@@ -54,7 +56,7 @@ export default function CartDrawer({ loggedIn }: { loggedIn?: boolean }) {
           <button
             type="button"
             onClick={() => setIsOpen(false)}
-            className="text-cream/60 hover:text-white p-2 text-sm"
+            className="text-cream/60 hover:text-cream p-2 text-sm"
           >
             ✕
           </button>
@@ -75,15 +77,15 @@ export default function CartDrawer({ loggedIn }: { loggedIn?: boolean }) {
             return (
               <div key={l.id || `${l.product_id}-${l.volume}`} className="flex gap-4 border-b border-white/5 pb-4">
                 <div className="relative h-24 w-20 shrink-0 bg-ink border border-white/10 overflow-hidden rounded-sm">
-                  {l.image ? (
-                    <Image src={l.image} alt={l.title_en || "Product"} fill sizes="80px" className="object-cover" />
+                  {(l.image || l.image_url) ? (
+                    <Image src={l.image || l.image_url} alt={l.title_en || l.name || "Product"} fill sizes="80px" className="object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-xs text-cream/40">AURA</div>
                   )}
                 </div>
 
                 <div className="flex-1">
-                  <h3 className="font-serif text-cream text-sm">{locale === "ar" ? (l.title_ar || l.title_en) : (l.title_en || l.title_ar)}</h3>
+                  <h3 className="font-serif text-cream text-sm">{locale === "ar" ? (l.title_ar || l.title_en || l.name || l.title) : (l.title_en || l.title_ar || l.name || l.title)}</h3>
                   <p className="text-[10px] uppercase tracking-wider text-gold mt-0.5">{l.volume}</p>
                   <p className="text-xs font-bold text-gold mt-1">{money(price, locale)} {c("currency")}</p>
 
