@@ -59,7 +59,7 @@ export default async function Shop({ searchParams }: { searchParams: SP }) {
         <button className="btn-gold sm:col-span-2 lg:col-span-4">{t("apply")}</button>
       </form>
       {products.length === 0 ? <p className="text-center text-cream/60">{t("none")}</p> : (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 md:gap-6 lg:grid-cols-4">
           {products.map((p) => <ProductCard key={p.id} p={p} />)}
         </div>
       )}
