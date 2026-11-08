@@ -25,5 +25,8 @@ html[dir="rtl"] .font-display { font-family: var(--font-arabic), Cairo, serif; l
   .input { @apply w-full border border-white/10 bg-surface2 px-4 py-3 text-sm text-cream outline-none transition focus:border-gold focus:shadow-glow; }
   .card { @apply border border-white/5 bg-surface transition duration-500 hover:border-gold2/50 hover:shadow-glow; }
   .label { @apply mb-1 block text-xs uppercase tracking-widest text-cream/60; }
+  .tbl th, .tbl td { @apply px-3 py-3 align-middle; }
+  .tbl th { @apply font-medium; }
+  .badge { @apply inline-block border px-2 py-0.5 text-[10px] uppercase tracking-widest; }
   .gold-text { @apply bg-gold bg-clip-text text-transparent; }
 }
