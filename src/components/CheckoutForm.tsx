@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { useCampaign } from "@/components/Campaign";
+import { useCampaign, OfferSuggestion } from "@/components/Campaign";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { useCartStore } from "@/lib/cart-store";
@@ -156,13 +156,15 @@ export function CheckoutForm({
   const depositAmount = Math.round(totalAmount * 0.25);
   const remainingBalance = totalAmount - depositAmount;
 
-  const handleApplyCoupon = async () => {
-    if (!couponCode.trim()) return;
+  const handleApplyCoupon = async (override?: string) => {
+    const codeToUse = (typeof override === "string" ? override : couponCode).trim();
+    if (!codeToUse) return;
+    setCouponCode(codeToUse);
     setIsApplyingCoupon(true);
     setCouponError(null);
     try {
       const res: any = await applyCouponAction(
-        couponCode.trim(),
+        codeToUse,
         subtotal,
         items.map((i: any) => ({ product_id: i.product_id, volume: i.volume || "50ML", quantity: i.quantity ?? i.qty ?? 1 }))
       );
@@ -571,6 +573,11 @@ export function CheckoutForm({
               <label className="block text-xs uppercase tracking-wider text-cream/60">
                 {isAr ? "كود الخصم (كوبون)" : "Discount Coupon"}
               </label>
+              <OfferSuggestion
+                items={items.map((i: any) => ({ product_id: i.product_id, volume: i.volume || "50ML", quantity: i.quantity ?? i.qty ?? 1 }))}
+                appliedCode={appliedCoupon?.code}
+                onApply={(c) => handleApplyCoupon(c)}
+              />
               {campaign?.code && !appliedCoupon && (
                 <button
                   type="button"
@@ -590,7 +597,7 @@ export function CheckoutForm({
                 />
                 <button
                   type="button"
-                  onClick={handleApplyCoupon}
+                  onClick={() => handleApplyCoupon()}
                   disabled={isApplyingCoupon || !couponCode.trim()}
                   className="px-4 py-2 bg-surface2 hover:bg-surface2 text-cream rounded-lg text-xs font-semibold uppercase tracking-wider disabled:opacity-50 transition"
                 >
