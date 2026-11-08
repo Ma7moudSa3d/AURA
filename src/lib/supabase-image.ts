@@ -35,13 +35,13 @@ export function getProductImageUrl(product: any): string {
 
   // تنظيف السلاش والبكس المكرر
   let clean = trimmed.replace(/^\/+/, "");
-  if (clean.startsWith("products/")) {
-    clean = clean.slice("products/".length);
+  if (clean.startsWith("product-images/")) {
+    clean = clean.slice("product-images/".length);
   }
 
   if (!clean) return SVG_PLACEHOLDER;
 
   // تحويل الـ UUID أو اسم الملف إلى رابط Supabase المباشر والرسمي
   const base = (process.env.NEXT_PUBLIC_SUPABASE_URL || "https://qjwisnczaffrouaadqzg.supabase.co").replace(/\/+$/, "");
-  return `${base}/storage/v1/object/public/products/${clean}`;
+  return `${base}/storage/v1/object/public/product-images/${clean}`;
 }

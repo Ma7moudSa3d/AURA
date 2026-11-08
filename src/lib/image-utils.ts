@@ -1,6 +1,6 @@
 export const DEFAULT_PLACEHOLDER = "https://placehold.co/600x800/0a0a0a/C5A059?text=AURA+Fragrance";
 const SUPABASE_BASE = (process.env.NEXT_PUBLIC_SUPABASE_URL || "https://qjwisnczaffrouaadqzg.supabase.co").replace(/\/+$/, "");
-export const SUPABASE_STORAGE_URL = `${SUPABASE_BASE}/storage/v1/object/public/products/`;
+export const SUPABASE_STORAGE_URL = `${SUPABASE_BASE}/storage/v1/object/public/product-images/`;
 
 export function getCleanImageUrl(product: any): string {
   if (!product) return DEFAULT_PLACEHOLDER;
@@ -41,8 +41,8 @@ export function getCleanImageUrl(product: any): string {
 
   // تنظيف السلاش والكلمات المكررة
   let sanitized = clean.replace(/^\/+/, "");
-  if (sanitized.startsWith("products/")) {
-    sanitized = sanitized.slice("products/".length);
+  if (sanitized.startsWith("product-images/")) {
+    sanitized = sanitized.slice("product-images/".length);
   }
 
   if (!sanitized) return DEFAULT_PLACEHOLDER;
