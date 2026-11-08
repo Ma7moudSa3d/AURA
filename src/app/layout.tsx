@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Inter, Cairo } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import "./globals.css";
@@ -10,10 +9,6 @@ import CartSync from "@/components/CartSync";
 import { getSettings, getUser } from "@/lib/data";
 import { getCampaign } from "@/lib/campaign";
 import { CampaignProvider, CampaignBar } from "@/components/Campaign";
-
-const display = Cormorant_Garamond({ subsets: ["latin"], weight: ["300", "400", "500", "600"], variable: "--font-display" });
-const body = Inter({ subsets: ["latin"], variable: "--font-body" });
-const arabic = Cairo({ subsets: ["arabic", "latin"], variable: "--font-arabic" });
 
 export const metadata: Metadata = {
   title: { default: "AURA — Eau de Parfum", template: "%s | AURA" },
@@ -28,7 +23,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const campaign = getCampaign(settings);
   const banner = locale === "ar" ? settings.announcement_ar : settings.announcement_en;
   return (
-    <html lang={locale} dir={locale === "ar" ? "rtl" : "ltr"} className={`${display.variable} ${body.variable} ${arabic.variable}`}>
+    <html lang={locale} dir={locale === "ar" ? "rtl" : "ltr"}>
+      <head>
+        {/* Fonts load in the browser (the CSP already allows Google Fonts), so a Google outage can never break the build. */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Cairo:wght@300..800&family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@300..700&display=swap"
+        />
+      </head>
       <body className="min-h-screen font-sans">
         <NextIntlClientProvider messages={messages} locale={locale}>
           <CampaignProvider value={campaign}>
