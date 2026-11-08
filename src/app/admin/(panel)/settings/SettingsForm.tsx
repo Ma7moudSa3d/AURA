@@ -1,14 +1,17 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { saveSettings } from "@/app/actions/admin";
 import { isoToCairoLocal } from "@/lib/campaign";
+import OfferImageField from "@/components/OfferImageField";
 
 interface SettingsFormProps {
   initialSettings: any;
 }
 
 export default function SettingsForm({ initialSettings: s }: SettingsFormProps) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -31,10 +34,11 @@ export default function SettingsForm({ initialSettings: s }: SettingsFormProps) 
     startTransition(async () => {
       try {
         const res = await saveSettings(formData);
-        if (res && res.ok === false) {
-          setMessage({ type: "error", text: res.error || "Failed to save settings." });
+        if (!res || res.ok !== true) {
+          setMessage({ type: "error", text: res?.error || "Failed to save settings." });
         } else {
           setMessage({ type: "success", text: "Settings saved successfully! 🎉" });
+          router.refresh();
         }
       } catch (err: any) {
         setMessage({ type: "error", text: err.message || "An unexpected error occurred." });
@@ -80,25 +84,11 @@ export default function SettingsForm({ initialSettings: s }: SettingsFormProps) 
           <span className="text-xs uppercase tracking-widest text-cream">Campaign is live</span>
           <input type="checkbox" name="campaign_active" defaultChecked={!!s?.campaign_active} className="h-5 w-5 cursor-pointer accent-gold" />
         </label>
-        <p className="mb-2 text-xs text-cream/60">Offer artwork: square image, under 4 MB each. Choose one image, press Save, then repeat for the next.</p>
+        <p className="mb-2 text-xs text-cream/60">Offer artwork: a square image. It uploads as soon as you pick it; press Save to publish.</p>
         <div className="mb-4 grid gap-4 sm:grid-cols-3">
-          {([
-            ["offer_image_100", "Offer image: 2 × 100ML + 50ML free", "/offers/offer-100.jpg"],
-            ["offer_image_50", "Offer image: 3 × 50ML, third half price", "/offers/offer-50.jpg"],
-            ["offer_image_pack", "Pocket Pack image", "/offers/pocket-pack.jpg"],
-          ] as const).map(([key, label, fallback]) => (
-            <div key={key} className="border border-white/10 bg-surface p-3">
-              <p className="mb-2 text-[11px] uppercase tracking-widest text-cream/60">{label}</p>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={s?.[key] || fallback} alt="" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} className="mb-2 aspect-square w-full object-cover" />
-              <input type="file" name={key} accept="image/*" className="block w-full text-xs text-cream/70 file:mr-2 file:border file:border-gold/50 file:bg-transparent file:px-2 file:py-1 file:text-gold" />
-              {s?.[key] && (
-                <label className="mt-2 flex items-center gap-2 text-[11px] text-cream/50">
-                  <input type="checkbox" name={`remove_${key}`} className="accent-gold" /> Remove custom image
-                </label>
-              )}
-            </div>
-          ))}
+          <OfferImageField name="offer_image_100" label="Offer image: 2 × 100ML + 50ML free" current={s?.offer_image_100 ?? null} fallback="" />
+          <OfferImageField name="offer_image_50" label="Offer image: 3 × 50ML, third half price" current={s?.offer_image_50 ?? null} fallback="" />
+          <OfferImageField name="offer_image_pack" label="Pocket Pack image" current={s?.offer_image_pack ?? null} fallback="/offers/pocket-pack.jpg" />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           {f("Ends at (Cairo time)", "campaign_ends_at", isoToCairoLocal(s?.campaign_ends_at), "datetime-local")}
