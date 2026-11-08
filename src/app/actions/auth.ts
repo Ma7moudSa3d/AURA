@@ -75,7 +75,8 @@ export async function updateProfile(fd: FormData): Promise<Res> {
   const sb = supabaseServer();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return { ok: false, error: "AUTH" };
-  const { error } = await sb.from("profiles").update(p.data).eq("id", user.id);
+  const { error } = await sb.from("profiles").upsert({ id: user.id, ...p.data }, { onConflict: "id" });
+  if (error) console.error("[profile] update failed:", error.message);
   return error ? { ok: false, error: "FAILED" } : { ok: true };
 }
 

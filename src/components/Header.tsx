@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useTranslations, useLocale } from "next-intl";
 import { useCart, CartStoreState } from "@/lib/cart-store";
+import { logout } from "@/app/actions/auth";
 
 function IconGlobe(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -47,6 +48,7 @@ function IconX(props: React.SVGProps<SVGSVGElement>) {
 
 export default function Header({ loggedIn, whatsapp }: { loggedIn?: boolean; whatsapp?: string }) {
   const t = useTranslations("nav");
+  const a = useTranslations("auth");
   const locale = useLocale();
 
   const lines = useCart((s: CartStoreState) => s.lines || s.items || []);
@@ -116,17 +118,33 @@ export default function Header({ loggedIn, whatsapp }: { loggedIn?: boolean; wha
             )}
           </button>
 
-          {/* Profile / Auth Link */}
+          {/* Account / Auth */}
           <div className="hidden sm:block border-l border-white/10 h-6 mx-1" />
 
           {loggedIn ? (
-            <Link href="/profile" className="hidden sm:flex items-center gap-2 p-2 text-cream/60 hover:text-cream transition-colors">
-              <IconUser className="h-6 w-6" />
-            </Link>
+            <>
+              <Link href="/account" aria-label={t("account")} title={t("account")} className="flex items-center gap-2 p-2 text-cream/60 hover:text-gold transition-colors">
+                <IconUser className="h-6 w-6" />
+              </Link>
+              <form action={logout} className="hidden sm:block">
+                <button type="submit" className="text-xs font-bold tracking-widest uppercase text-cream/60 hover:text-gold transition-colors">
+                  {t("logout")}
+                </button>
+              </form>
+            </>
           ) : (
-            <Link href="/login" className="hidden sm:block text-xs font-bold tracking-widest uppercase text-gold hover:text-gold transition-colors">
-              {t("login")}
-            </Link>
+            <>
+              {/* phones: one icon; larger screens: explicit Sign in / Sign up */}
+              <Link href="/login" aria-label={t("login")} className="p-2 text-cream/60 hover:text-gold transition-colors sm:hidden">
+                <IconUser className="h-6 w-6" />
+              </Link>
+              <Link href="/login" className="hidden sm:block text-xs font-bold tracking-widest uppercase text-gold hover:brightness-110 transition">
+                {t("login")}
+              </Link>
+              <Link href="/signup" className="hidden sm:inline-flex btn-ghost !px-4 !py-2">
+                {a("signup")}
+              </Link>
+            </>
           )}
 
           {/* Mobile Menu Toggle */}
@@ -149,9 +167,17 @@ export default function Header({ loggedIn, whatsapp }: { loggedIn?: boolean; wha
             <Link href="/contact" onClick={() => setMenu(false)} className="text-2xl font-medium">{t("contact")}</Link>
             <div className="w-12 h-px bg-white/10 my-2" />
             {loggedIn ? (
-              <Link href="/profile" onClick={() => setMenu(false)} className="text-xl text-gold">{t("profile")}</Link>
+              <>
+                <Link href="/account" onClick={() => setMenu(false)} className="text-xl text-gold">{t("account")}</Link>
+                <form action={logout}>
+                  <button type="submit" className="text-xl text-cream/70 hover:text-gold">{t("logout")}</button>
+                </form>
+              </>
             ) : (
-              <Link href="/login" onClick={() => setMenu(false)} className="text-xl text-gold uppercase tracking-widest">{t("login")}</Link>
+              <>
+                <Link href="/login" onClick={() => setMenu(false)} className="text-xl text-gold uppercase tracking-widest">{t("login")}</Link>
+                <Link href="/signup" onClick={() => setMenu(false)} className="text-xl text-cream/70">{a("signup")}</Link>
+              </>
             )}
           </nav>
         </div>
