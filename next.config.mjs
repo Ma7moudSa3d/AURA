@@ -19,6 +19,8 @@ const csp = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Server actions default to a 1MB body, which rejected image uploads (offer images, payment receipts).
+  experimental: { serverActions: { bodySizeLimit: "5mb" } },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "**.supabase.co" },
