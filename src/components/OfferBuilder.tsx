@@ -28,7 +28,7 @@ export default function OfferBuilder({
   const total = (g: Group) => Object.values(sel[g.key] ?? {}).reduce((a, b) => a + b, 0);
   const usedOf = (pid: string) => groups.reduce((a, g) => a + (sel[g.key]?.[pid] ?? 0), 0);
   const complete = groups.every((g) => total(g) === g.count);
-  const name = (p: BuilderProduct) => (isAr ? p.title_ar || p.title_en : p.title_en).replace(/^AURA\s*-\s*/i, "");
+  const name = (p: BuilderProduct) => p.title_en.replace(/^AURA\s*-\s*/i, "");
 
   const change = (g: Group, pid: string, delta: number) =>
     setSel((s) => {

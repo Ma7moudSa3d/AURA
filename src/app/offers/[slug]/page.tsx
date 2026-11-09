@@ -11,17 +11,17 @@ export const dynamic = "force-dynamic";
 const OFFERS = {
   "2x100-get-50-free": {
     type: "BUNDLE_2X100_FREE50" as const,
-    titleEn: "2 × 100ML + a 50ML free", titleAr: "2 × 100مل + 50مل هدية",
+    titleEn: "2 × 100ML + a 50ML free", titleAr: "2 × 100ML + 50ML هدية",
     groups: [
-      { key: "big", volume: "100ML", count: 2, titleEn: "Choose two 100ML bottles (same or different scents)", titleAr: "اختر زجاجتين 100 مل (نفس الرائحة أو مختلفة)" },
-      { key: "free", volume: "50ML", count: 1, titleEn: "Choose your free 50ML bottle (any scent)", titleAr: "اختر زجاجة الـ 50 مل المجانية (أي رائحة)" },
+      { key: "big", volume: "100ML", count: 2, titleEn: "Choose two 100ML bottles (same or different scents)", titleAr: "اختر زجاجتين 100ML (نفس الرائحة أو مختلفة)" },
+      { key: "free", volume: "50ML", count: 1, titleEn: "Choose your free 50ML bottle (any scent)", titleAr: "اختر زجاجة الـ 50ML المجانية (أي رائحة)" },
     ],
   },
   "3x50-third-half": {
     type: "BUNDLE_2X50_THIRD_HALF" as const,
-    titleEn: "3 × 50ML, the third at half price", titleAr: "3 × 50مل، الثالثة بنصف السعر",
+    titleEn: "3 × 50ML, the third at half price", titleAr: "3 × 50ML، الثالثة بنصف السعر",
     groups: [
-      { key: "trio", volume: "50ML", count: 3, titleEn: "Choose three 50ML bottles (same or different scents)", titleAr: "اختر 3 زجاجات 50 مل (نفس الرائحة أو مختلفة)" },
+      { key: "trio", volume: "50ML", count: 3, titleEn: "Choose three 50ML bottles (same or different scents)", titleAr: "اختر 3 زجاجات 50ML (نفس الرائحة أو مختلفة)" },
     ],
   },
 };

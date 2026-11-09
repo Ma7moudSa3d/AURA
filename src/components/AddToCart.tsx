@@ -57,7 +57,7 @@ export default function AddToCart({
         }`
       }
     >
-      {stock <= 0 ? "Out of Stock / غير متوفر" : added ? "✓ Added to Bag" : `Add to Bag (${volume})`}
+      {stock <= 0 ? "Out of Stock" : added ? "✓ Added to Bag" : `Add to Bag (${volume})`}
     </button>
   )
 }

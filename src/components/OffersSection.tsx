@@ -28,15 +28,15 @@ export default async function OffersSection({ contained = false }: { contained?:
       <div className="grid gap-6 md:grid-cols-3">
         {a && (
           <OfferCard href="/offers/2x100-get-50-free" art={settings?.offer_image_100} tileBig="2 + 1" tileSmall="100ML · 100ML · 50ML FREE" code={a.code}
-            titleEn="2 × 100ML + 50ML free" titleAr="2 × 100مل + 50مل هدية"
+            titleEn="2 × 100ML + 50ML free" titleAr="2 × 100ML + 50ML هدية"
             bodyEn="Buy any two 100ML bottles and the 50ML bottle in your cart is on us."
-            bodyAr="اشتري أي زجاجتين 100 مل وزجاجة 50 مل في سلتك علينا." />
+            bodyAr="اشتري أي زجاجتين 100ML وزجاجة 50ML في سلتك علينا." />
         )}
         {b && (
           <OfferCard href="/offers/3x50-third-half" art={settings?.offer_image_50} tileBig="3rd −50%" tileSmall="3 × 50ML" code={b.code}
-            titleEn="3 × 50ML, third at half price" titleAr="3 × 50مل، الثالثة بنصف السعر"
+            titleEn="3 × 50ML, third at half price" titleAr="3 × 50ML، الثالثة بنصف السعر"
             bodyEn="Pick three 50ML bottles and get 50% off the third one."
-            bodyAr="اختر 3 زجاجات 50 مل واحصل على خصم 50% على الثالثة." />
+            bodyAr="اختر 3 زجاجات 50ML واحصل على خصم 50% على الثالثة." />
         )}
         {packOk && <PocketPackCard price={POCKET_PACK_PRICE} worth={worth} image={settings?.offer_image_pack || "/offers/pocket-pack.jpg"} />}
       </div>

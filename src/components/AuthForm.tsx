@@ -1,13 +1,14 @@
 "use client";
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { login, signup, forgotPassword, updatePassword, type Res } from "@/app/actions/auth";
 
 type Mode = "login" | "signup" | "forgot" | "reset";
 
 export default function AuthForm({ mode, next = "/" }: { mode: Mode; next?: string }) {
   const t = useTranslations("auth");
+  const locale = useLocale();
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [pending, start] = useTransition();
   const action = { login, signup, forgot: forgotPassword, reset: updatePassword }[mode];
@@ -20,7 +21,7 @@ export default function AuthForm({ mode, next = "/" }: { mode: Mode; next?: stri
         const r: Res | undefined = await action(fd);
         if (!r) return; // redirected
         if (r.ok) setMsg({ kind: "ok", text: r.info === "VERIFY" ? t("verify") : r.info === "SENT" ? t("resetSent") : "✓" });
-        else setMsg({ kind: "err", text: r.error === "EMAIL_RATE_LIMIT" ? "تم إرسال إيميلات كتير، استنى شوية وحاول تاني / Too many emails sent, please try again shortly" : t("error") });
+        else setMsg({ kind: "err", text: r.error === "EMAIL_RATE_LIMIT" ? (locale === "ar" ? "تم إرسال رسائل كثيرة، يرجى الانتظار قليلاً ثم المحاولة مرة أخرى" : "Too many emails sent, please try again shortly") : t("error") });
       })}>
       <h1 className="h-display text-4xl">{{ login: t("loginTitle"), signup: t("signupTitle"), forgot: t("resetTitle"), reset: t("newPassword") }[mode]}</h1>
       <input type="hidden" name="next" value={next} />

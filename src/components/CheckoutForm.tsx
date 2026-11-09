@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useCampaign, OfferSuggestion } from "@/components/Campaign";
+import { localizeMsg } from "@/lib/format";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { useCartStore } from "@/lib/cart-store";
@@ -467,7 +468,7 @@ export function CheckoutForm({
                       </span>
                     </p>
                     <p className="mt-1">
-                      2. {isAr ? "قم بإلتقاط صورة لشاشة إيصال التحويل وترفيقها بالأسفل." : "Take a screenshot of the payment receipt and upload below."}
+                      2. {isAr ? "قم بالتقاط صورة لشاشة إيصال التحويل وإرفاقها بالأسفل." : "Take a screenshot of the payment receipt and upload below."}
                     </p>
                   </div>
 
@@ -506,7 +507,7 @@ export function CheckoutForm({
           {errorMsg && (
             <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-sm flex items-center gap-2">
               <IconAlertCircle className="w-5 h-5 shrink-0 text-red-400" />
-              <span>{errorMsg}</span>
+              <span>{localizeMsg(errorMsg, isAr ? "ar" : "en")}</span>
             </div>
           )}
 
@@ -558,7 +559,7 @@ export function CheckoutForm({
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="text-sm font-medium text-cream/80 truncate">
-                        {isAr ? item.title_ar || item.name || item.title_en || item.product?.title_ar : item.name || item.title_en || item.product?.title_en}
+                        <bdi>{item.title_en || item.name || item.product?.title_en || item.title_ar}</bdi>
                       </h4>
                       <p className="text-xs text-cream/60">
                         {isAr ? "الحجم:" : "Volume:"} <span className="text-gold font-medium">{item.volume || "50ML"}</span>
@@ -617,7 +618,7 @@ export function CheckoutForm({
                   {isAr ? `تم تطبيق الكوبون (${appliedCoupon.code})` : `Coupon applied (${appliedCoupon.code})`}
                 </p>
               )}
-              {couponError && <p className="text-xs text-red-400">{couponError}</p>}
+              {couponError && <p className="text-xs text-red-400">{localizeMsg(couponError, isAr ? "ar" : "en")}</p>}
             </div>
 
             {/* Financial Totals */}

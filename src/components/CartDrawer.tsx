@@ -92,7 +92,7 @@ export default function CartDrawer({ loggedIn }: { loggedIn?: boolean }) {
                 </div>
 
                 <div className="flex-1">
-                  <h3 className="font-serif text-cream text-sm">{locale === "ar" ? (l.title_ar || l.title_en || l.name || l.title) : (l.title_en || l.title_ar || l.name || l.title)}</h3>
+                  <h3 className="font-serif text-cream text-sm"><bdi>{l.title_en || l.name || l.title || l.title_ar}</bdi></h3>
                   <p className="text-[10px] uppercase tracking-wider text-gold mt-0.5">{l.volume}</p>
                   <p className="text-xs font-bold text-gold mt-1">{money(price, locale)} {c("currency")}</p>
 
