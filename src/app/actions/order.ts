@@ -46,7 +46,7 @@ export async function createOrder(formData: FormData): Promise<{ ok: true; order
     const proof = file instanceof File && file.size > 0 ? file : null;
     if (payment_method !== "COD" && !proof) return fail("يرجى إرفاق إيصال التحويل / Please upload the transfer receipt");
     if (proof && (proof.size > 5 * 1024 * 1024 || !proof.type.startsWith("image/"))) {
-      return fail("الإيصال لازم يكون صورة أقل من 5MB / Receipt must be an image under 5MB");
+      return fail("يجب أن يكون الإيصال صورة بحجم أقل من 5MB / Receipt must be an image under 5MB");
     }
 
     // ── Items ─────────────────────────────────────────────

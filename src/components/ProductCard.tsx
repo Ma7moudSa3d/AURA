@@ -22,7 +22,8 @@ const ProductCard: React.FC<ProductCardProps> = (props) => {
 
   if (!item) return null;
 
-  const name = (isAr ? item.title_ar || item.title_en : item.title_en || item.title_ar) || item.name || "AURA Fragrance";
+  // Product names stay in English on every language (they are brand names, not translations).
+  const name = item.title_en || item.title_ar || item.name || "AURA Fragrance";
   const basePrice = minPrice(item);
   const defaultVariant = pickVariant(item, DEFAULT_VOLUME);
   const productLink = `/product/${item.slug || item.id}`;
@@ -69,7 +70,7 @@ const ProductCard: React.FC<ProductCardProps> = (props) => {
         {/* اسم العطر */}
         <Link href={productLink}>
           <h3 className="text-cream font-medium text-sm mb-1 group-hover:text-gold transition-colors line-clamp-2 min-h-[2.5rem] uppercase tracking-wider">
-            {name}
+            <bdi>{name}</bdi>
           </h3>
         </Link>
 

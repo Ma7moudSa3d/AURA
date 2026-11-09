@@ -30,7 +30,7 @@ export default async function SuccessPage({ params }: { params: { id: string } }
       <h1 className="h-display text-4xl sm:text-5xl">{isAr ? "تم استلام طلبك" : "Thank you for your order"}</h1>
       <p className="mt-4 text-cream/70">
         {isAr
-          ? "هنراجع الدفع ونأكد معاك الطلب قريباً. وصلك إيميل بتفاصيل الطلب."
+          ? "سنراجع الدفع ونؤكد طلبك قريباً. وصلتك رسالة على بريدك بتفاصيل الطلب."
           : "We will verify your payment and confirm shortly. A confirmation email is on its way."}
       </p>
 

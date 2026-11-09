@@ -18,7 +18,7 @@ export default function PocketPackPicker({ options, image = "/offers/pocket-pack
   const chosen = options.filter((o) => picked.includes(o.id));
   const worth = chosen.reduce((s, o) => s + o.price, 0);
   const ready = picked.length === POCKET_PACK_SIZE;
-  const name = (o: Opt) => (isAr ? o.title_ar || o.title_en : o.title_en);
+  const name = (o: Opt) => o.title_en;
 
   const toggle = (id: string) =>
     setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length >= POCKET_PACK_SIZE ? p : [...p, id]));
@@ -56,7 +56,7 @@ export default function PocketPackPicker({ options, image = "/offers/pocket-pack
         <h1 className="h-display mt-2 text-4xl">{isAr ? "باكيدج الجيب" : "The Pocket Pack"}</h1>
         <p className="mt-3 text-cream/70">
           {isAr
-            ? `${POCKET_PACK_SIZE} زجاجات ${POCKET_PACK_VOLUME.replace("ML", "")} مل، كل زجاجة رائحة مختلفة. بدون تكرار.`
+            ? `${POCKET_PACK_SIZE} زجاجات ${POCKET_PACK_VOLUME}، كل زجاجة رائحة مختلفة. بدون تكرار.`
             : `${POCKET_PACK_SIZE} bottles of ${POCKET_PACK_VOLUME.replace("ML", "")}ML, each a different scent. No repeats.`}
         </p>
         <p className="mt-4 text-3xl font-bold text-gold">
@@ -98,7 +98,7 @@ export default function PocketPackPicker({ options, image = "/offers/pocket-pack
           {done ? (isAr ? "تمت الإضافة ✓" : "ADDED ✓") : isAr ? `أضف الباكيدج للسلة (${POCKET_PACK_PRICE} ج.م)` : `ADD PACK TO CART (${POCKET_PACK_PRICE} EGP)`}
         </button>
         <p className="mt-3 text-xs text-cream/50">
-          {isAr ? "سعر الباكيدج بيتحسب تلقائياً في السلة والدفع." : "The pack price is applied automatically in your cart and at checkout."}
+          {isAr ? "يُحتسب سعر الباكيدج تلقائياً في السلة وصفحة الدفع." : "The pack price is applied automatically in your cart and at checkout."}
         </p>
       </div>
     </div>

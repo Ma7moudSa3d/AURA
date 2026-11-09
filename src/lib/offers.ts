@@ -16,11 +16,11 @@ export const POCKET_PACK_VOLUME = "5ML";
 
 export const BUNDLE_HELP: Record<BundleType, { ar: string; en: string }> = {
   BUNDLE_2X100_FREE50: {
-    ar: "العرض يحتاج في السلة: زجاجتين 100ML + زجاجة 50ML (تكون مجانية)",
+    ar: "يتطلب هذا العرض في سلتك: زجاجتين 100ML وزجاجة 50ML (تكون مجانية)",
     en: "This offer needs in your cart: two 100ML bottles + one 50ML bottle (the 50ML is free)",
   },
   BUNDLE_2X50_THIRD_HALF: {
-    ar: "العرض يحتاج في السلة: 3 زجاجات 50ML (الثالثة بنصف السعر)",
+    ar: "يتطلب هذا العرض في سلتك: 3 زجاجات 50ML (الثالثة بنصف السعر)",
     en: "This offer needs in your cart: three 50ML bottles (the third at 50% off)",
   },
 };

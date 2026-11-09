@@ -48,7 +48,7 @@ export function PocketPackCard({ price, worth, image }: { price: number; worth: 
       <p className="text-[10px] uppercase tracking-[.35em] text-gold">✦ {isAr ? "الجمعة الذهبية" : "Golden Friday"}</p>
       <h3 className="h-display mt-2 text-2xl text-cream">{isAr ? "باكيدج الجيب" : "The Pocket Pack"}</h3>
       <p className="mt-2 flex-1 text-sm text-cream/70">
-        {isAr ? "7 زجاجات 5 مل، كل زجاجة رائحة مختلفة من تشكيلتنا." : "Seven 5ML bottles, one of each scent in our collection."}
+        {isAr ? "7 زجاجات 5ML، كل زجاجة رائحة مختلفة من تشكيلتنا." : "Seven 5ML bottles, one of each scent in our collection."}
       </p>
       <p className="mt-4 text-gold">
         <span className="text-2xl font-bold">{price} {isAr ? "ج.م" : "EGP"}</span>

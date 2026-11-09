@@ -17,7 +17,7 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
   const isAr = useLocale() === "ar";
 
   const p = product ?? {};
-  const title = (isAr ? p.title_ar || p.title_en : p.title_en || p.title_ar) || p.name || "AURA Fragrance";
+  const title = p.title_en || p.title_ar || p.name || "AURA Fragrance";
   const description = (isAr ? p.description_ar || p.description_en : p.description_en || p.description_ar) || p.description || "";
   const gallery = getAllImageUrls(p);
   const [activeImg, setActiveImg] = useState(0);
@@ -87,7 +87,7 @@ const ProductPurchaseSection: React.FC<ProductPurchaseSectionProps> = ({ product
       <div className="flex flex-col space-y-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-serif text-cream uppercase tracking-wider mb-2">
-            {title}
+            <bdi>{title}</bdi>
           </h1>
           <p className="text-2xl font-bold text-gold">
             {selectedVariant.price} {isAr ? "ج.م" : "EGP"}

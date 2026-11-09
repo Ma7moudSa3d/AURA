@@ -14,7 +14,8 @@ export function effectivePrice(p: Product, now = new Date()): number {
 export const money = (n: number, locale: string) =>
   new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-EG", { maximumFractionDigits: 2 }).format(n);
 
-export const title = (p: Product, locale: string) => (locale === "ar" ? p.title_ar : p.title_en);
+// Product names are never translated.
+export const title = (p: Product, _locale?: string) => p.title_en;
 export const desc = (p: Product, locale: string) => (locale === "ar" ? p.description_ar : p.description_en) ?? "";
 
 export function imageUrl(path: string) {
@@ -24,4 +25,14 @@ export function imageUrl(path: string) {
 
 export function waLink(number: string, message: string) {
   return `https://wa.me/${number.replace(/\D/g, "")}?text=${encodeURIComponent(message)}`;
+}
+
+/** Server messages are written "عربي / English". Show only the half that matches the page language. */
+export function localizeMsg(msg: string | null | undefined, locale: string): string {
+  if (!msg) return "";
+  const i = msg.indexOf(" / ");
+  if (i < 0) return msg;
+  const [a, b] = [msg.slice(0, i), msg.slice(i + 3)];
+  const aIsAr = /[\u0600-\u06FF]/.test(a);
+  return (locale === "ar") === aIsAr ? a : b;
 }
