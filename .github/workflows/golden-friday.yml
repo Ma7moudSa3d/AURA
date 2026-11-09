@@ -1,0 +1,13 @@
+name: golden-friday-announcement
+on:
+  schedule:
+    - cron: "0 16 * * *"   # 18:00 Cairo; sends to anyone who has not received it yet (safe to repeat)
+  workflow_dispatch:
+jobs:
+  call:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send announcement
+        run: |
+          curl -fsS -X POST "${{ secrets.SITE_URL }}/api/cron/golden-friday" \
+            -H "Authorization: Bearer ${{ secrets.CRON_TOKEN }}"

@@ -30,13 +30,17 @@ export async function signup(fd: FormData): Promise<Res> {
   if (!p.success) return { ok: false, error: "INVALID" };
   if (!rateLimit(`signup:${ip()}`, 5, 60 * 60_000)) return { ok: false, error: "RATE_LIMITED" };
   const next = safeNext(String(fd.get("next") ?? "/"));
-  const { error } = await supabaseServer().auth.signUp({
+  const { data: created, error } = await supabaseServer().auth.signUp({
     email: p.data.email, password: p.data.password,
     options: { data: { full_name: p.data.full_name }, emailRedirectTo: `${SITE}/auth/callback?next=${encodeURIComponent(next)}` },
   });
   if (error) {
     console.error("[auth] signup failed:", error.status, error.code, error.message);
     return { ok: false, error: error.status === 429 || error.code === "over_email_send_rate_limit" ? "EMAIL_RATE_LIMIT" : "FAILED" };
+  }
+  // Golden Friday welcome announcement (once per user, only while the campaign is live). Never blocks sign-up.
+  if (created?.user?.id) {
+    try { await (await import("@/lib/golden-mail")).sendGoldenAnnouncement({ userId: created.user.id }); } catch { /* ignore */ }
   }
   return { ok: true, info: "VERIFY" };
 }

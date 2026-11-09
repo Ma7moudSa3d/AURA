@@ -306,6 +306,12 @@ export async function sendRemindersNow() {
   return sendAbandonedReminders();
 }
 
+export async function sendGoldenNow() {
+  await requireAdmin();
+  const { sendGoldenAnnouncement } = await import("@/lib/golden-mail");
+  return sendGoldenAnnouncement();
+}
+
 export async function moderateReview(id: string, approve: boolean) {
   await requireAdmin();
   const sb = supabaseServer();
