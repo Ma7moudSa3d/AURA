@@ -81,3 +81,33 @@ export function toOfferLines(wanted: { product_id: string; volume: string; qty: 
     unit: byId.get(w.product_id) ? pickVariant(byId.get(w.product_id), w.volume).price : 0,
   }));
 }
+
+export type OfferHint =
+  | { kind: "bundle"; code: string; slug: string; type: BundleType; need100: number; need50: number }
+  | { kind: "pack"; need: number };
+
+export const BUNDLE_SLUG: Record<BundleType, string> = { BUNDLE_2X100_FREE50: "2x100-get-50-free", BUNDLE_2X50_THIRD_HALF: "3x50-third-half" };
+
+/** What is still missing for a bundle (null = cart has nothing related to it, or it already qualifies). */
+export function bundleMissing(type: unknown, lines: OfferLine[]): { need100: number; need50: number } | null {
+  const t = String(type ?? "").toUpperCase();
+  const n100 = units(lines, "100ML").length;
+  const n50 = units(lines, "50ML").length;
+  if (t === "BUNDLE_2X100_FREE50") {
+    if (n100 + n50 === 0 || (n100 >= 2 && n50 >= 1)) return null;
+    return { need100: Math.max(0, 2 - n100), need50: Math.max(0, 1 - n50) };
+  }
+  if (t === "BUNDLE_2X50_THIRD_HALF") {
+    if (n50 === 0 || n50 % 3 === 0) return null;
+    return { need100: 0, need50: 3 - (n50 % 3) };
+  }
+  return null;
+}
+
+/** Pocket Pack progress: how many more different 5ML scents are needed to complete a set of 7 (null = no 5ML in cart or already complete). */
+export function packMissing(lines: OfferLine[]): number | null {
+  const ids = new Set(lines.filter((l) => normVolume(l.volume) === POCKET_PACK_VOLUME && l.qty > 0 && l.product_id).map((l) => l.product_id));
+  if (ids.size === 0) return null;
+  const rem = ids.size % POCKET_PACK_SIZE;
+  return rem === 0 ? null : POCKET_PACK_SIZE - rem;
+}

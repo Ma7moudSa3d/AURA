@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { logout } from "@/app/actions/auth";
 
 const links: [string, string][] = [
-  ["/admin", "Dashboard"], ["/admin/orders", "Orders"], ["/admin/products", "Products"],
+  ["/admin", "Dashboard"], ["/admin/orders", "Orders"], ["/admin/users", "Users"], ["/admin/products", "Products"],
   ["/admin/coupons", "Coupons"], ["/admin/reviews", "Reviews"], ["/admin/settings", "Settings"],
 ];
 

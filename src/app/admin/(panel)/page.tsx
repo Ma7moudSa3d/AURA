@@ -27,7 +27,7 @@ export default async function Dashboard() {
         {stat("Revenue (30d, paid)", `${f(a?.revenue ?? 0)} EGP`)}{stat("Orders (30d)", f(a?.orders ?? 0))}
         {stat("Pending verification", f(a?.pending ?? 0))}{stat("Avg order value", `${f(a?.aov ?? 0)} EGP`)}
         {stat("Today's orders", f(today?.orders ?? 0))}{stat("Today's revenue", `${f(today?.revenue ?? 0)} EGP`)}
-        {stat("Customers", f(customers ?? 0))}{stat("Low-stock items", f(lowStock.length))}
+        <Link href="/admin/users">{stat("Customers", f(customers ?? 0))}</Link>{stat("Low-stock items", f(lowStock.length))}
       </div>
       {(a?.pending > 0 || (pendingReviews ?? 0) > 0) && (
         <div className="flex flex-wrap gap-3 text-sm">
