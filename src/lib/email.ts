@@ -120,3 +120,57 @@ export function abandonedHtml(name: string, items: { title: string; qty: number 
 <ul>${items.map((i) => `<li>${esc(i.title)} × ${i.qty}</li>`).join("")}</ul>
 <p style="text-align:center"><a href="${SITE}/cart" style="background:#D6B25E;color:#0B0B0D;padding:12px 28px;text-decoration:none;letter-spacing:2px">COMPLETE YOUR ORDER</a></p>`);
 }
+
+export type GoldenOffer = { code: string; type: string };
+
+/** Golden Friday launch announcement (Arabic first, English below). Brand: ink + gold on cream text. */
+export function goldenFridayHtml(name: string, offers: GoldenOffer[], endsAt?: string | null) {
+  const hello = name.trim().split(/\s+/)[0] || "";
+  const a = offers.find((o) => o.type === "BUNDLE_2X100_FREE50");
+  const b = offers.find((o) => o.type === "BUNDLE_2X50_THIRD_HALF");
+  const until = endsAt
+    ? new Date(endsAt).toLocaleDateString("en-GB", { timeZone: "Africa/Cairo", day: "numeric", month: "long" })
+    : "";
+  const untilAr = endsAt ? new Date(endsAt).toLocaleDateString("ar-EG", { timeZone: "Africa/Cairo", day: "numeric", month: "long" }) : "";
+  const link = `${SITE}/#offers`;
+  const chip = (c: string) =>
+    `<span style="display:inline-block;border:1px dashed #D6B25E;color:#D6B25E;padding:4px 12px;letter-spacing:3px;font-weight:bold;font-size:13px">${esc(c)}</span>`;
+  const card = (n: string, titleAr: string, titleEn: string, ar: string, en: string, code?: string, auto?: boolean) => `
+<tr><td style="padding:0 0 14px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #B88A3B;background:#0B0B0D">
+<tr><td width="64" align="center" style="font-family:Georgia,serif;font-size:34px;color:#D6B25E;padding:18px 0">${n}</td>
+<td align="center" style="padding:16px 16px 16px 0;text-align:center">
+<div style="font-family:Georgia,Tahoma,serif;font-size:19px;color:#F5F1E8" dir="rtl">${titleAr}</div>
+<div style="font-size:12px;letter-spacing:2px;color:#D6B25E;text-transform:uppercase;margin:2px 0 8px">${titleEn}</div>
+<div style="font-size:13px;line-height:1.7;color:#cfc8b8" dir="rtl">${ar}</div>
+<div style="font-size:13px;line-height:1.6;color:#9d978a;margin-top:4px">${en}</div>
+<div style="margin-top:10px;font-size:12px;color:#9d978a">${code ? `الكود / Code: ${chip(code)}` : auto ? "يتطبق تلقائيًا في السلة · Applied automatically in your cart" : ""}</div>
+</td></tr></table></td></tr>`;
+  return `<div style="background:#0B0B0D;padding:24px 12px;font-family:Arial,Tahoma,sans-serif;color:#F5F1E8">
+<table role="presentation" align="center" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;margin:auto;background:#121214;border:1px solid #B88A3B">
+<tr><td align="center" style="padding:30px 24px 6px">
+<div style="font-family:Georgia,serif;color:#D6B25E;letter-spacing:8px;font-size:26px">AURA</div>
+<div style="height:1px;background:linear-gradient(90deg,transparent,#D6B25E,transparent);margin:18px 0 0"></div></td></tr>
+<tr><td align="center" style="padding:18px 24px 4px">
+<div style="font-size:11px;letter-spacing:5px;color:#D6B25E">✦ LIMITED-TIME CAMPAIGN ✦</div>
+<div style="font-family:Georgia,serif;font-size:46px;line-height:1.1;color:#D6B25E;margin:12px 0 6px">Golden Friday</div>
+<div style="font-size:22px;color:#F5F1E8;font-family:Georgia,Tahoma,serif" dir="rtl">الجمعة الذهبية بدأت</div>
+</td></tr>
+<tr><td style="padding:14px 28px 4px;text-align:center;font-size:14px;line-height:1.8;color:#cfc8b8">
+<div dir="rtl">${hello ? `أهلاً ${esc(hello)}،` : "أهلاً بيك،"} ٣ عروض حصرية على عطور AURA${untilAr ? ` حتى ${untilAr}` : ""}. اختار زجاجاتك بنفسك — نفس الرائحة أو روائح مختلفة، زي ما تحب.</div>
+<div style="color:#9d978a;margin-top:6px;font-size:13px">${hello ? `Hi ${esc(hello)} — ` : ""}three exclusive offers on AURA fragrances${until ? ` until ${until}` : ""}. Pick your bottles — same scent or mix them, your choice.</div>
+</td></tr>
+<tr><td style="padding:18px 24px 0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+${a ? card("2+1", "زجاجتين 100ML + زجاجة 50ML هدية", "2 × 100ML + 50ML free", "اطلب زجاجتين 100ML وخد زجاجة 50ML مجانًا.", "Buy two 100ML bottles and get a 50ML on us.", a.code) : ""}
+${b ? card("3×50", "٣ زجاجات 50ML — الثالثة بنص السعر", "3 × 50ML — third at 50% off", "اطلب ٣ زجاجات 50ML والثالثة بخصم 50%.", "Take three 50ML bottles — the third is half price.", b.code) : ""}
+${card("7×5", "باكيدج الجيب — ٣٥٠ ج.م", "The Pocket Pack — 350 EGP", "٧ زجاجات 5ML، كل زجاجة رائحة مختلفة من تشكيلتنا.", "Seven 5ML bottles — one of every scent we make.", undefined, true)}
+</table></td></tr>
+<tr><td align="center" style="padding:10px 24px 8px">
+<a href="${link}" style="display:inline-block;background:#D6B25E;color:#0B0B0D;padding:15px 38px;text-decoration:none;letter-spacing:3px;font-weight:bold;font-size:13px">SHOP THE OFFERS · تسوّق العروض</a>
+</td></tr>
+<tr><td align="center" style="padding:14px 28px 6px;font-size:12px;line-height:1.8;color:#cfc8b8">
+<div style="border-top:1px solid #2a2a2e;padding-top:14px" dir="rtl">📸 صوّر أوردرك (٣ صور أو أكتر) وانشرها على بروفايلك واعمل منشن لصفحتنا، وخد زجاجة 5ML من اختيارك مع أوردرك الجاي. ✦</div>
+<div style="color:#9d978a;margin-top:4px">Post 3+ photos of your order and tag our page — get a 5ML bottle of your choice with your next order.</div>
+</td></tr>
+<tr><td align="center" style="padding:16px 24px 26px;font-size:11px;color:#6f6a60">AURA Fragrances · Eau de Parfum, composed in Egypt<br>${SITE.replace(/^https?:\/\//, "")}</td></tr>
+</table></div>`;
+}
