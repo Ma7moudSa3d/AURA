@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/rate-limit";
 import { ADMIN_COOKIE, signAdminCookie } from "@/lib/admin-cookie";
-import { OWNER_EMAIL } from "@/lib/admin";
+import { isAdminEmail } from "@/lib/admin-emails";
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 const ip = () => headers().get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
@@ -88,14 +88,14 @@ export async function adminPasswordStep(fd: FormData): Promise<Res> {
   if (!rateLimit(`admin-login:${ip()}`, 10, 15 * 60_000)) return { ok: false, error: "RATE_LIMITED" };
   // Generic failure for non-owner so the allowlist is not revealed
   const email = p.data.email.toLowerCase();
-  if (email !== OWNER_EMAIL) return { ok: false, error: "INVALID" };
+  if (!isAdminEmail(email)) return { ok: false, error: "INVALID" };
   const sb = supabaseServer();
   const { error } = await sb.auth.signInWithPassword({ email, password: p.data.password });
   if (error) {
     console.error("[admin-login] password step:", error.message);
     return { ok: false, error: /not confirmed/i.test(error.message) ? "NOT_CONFIRMED" : "INVALID" };
   }
-  const { error: otpErr } = await sb.auth.signInWithOtp({ email: OWNER_EMAIL, options: { shouldCreateUser: false } });
+  const { error: otpErr } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
   if (otpErr) {
     console.error("[admin-login] otp step:", otpErr.message);
     return { ok: false, error: /rate limit/i.test(otpErr.message) ? "EMAIL_RATE_LIMIT" : "OTP_FAILED" };
@@ -108,9 +108,12 @@ export async function adminOtpStep(fd: FormData): Promise<Res> {
   if (!code.success) return { ok: false, error: "INVALID" };
   if (!rateLimit(`admin-otp:${ip()}`, 6, 15 * 60_000)) return { ok: false, error: "RATE_LIMITED" };
   const sb = supabaseServer();
-  const { data, error } = await sb.auth.verifyOtp({ email: OWNER_EMAIL, token: code.data, type: "email" });
-  if (error || data.user?.email !== OWNER_EMAIL) return { ok: false, error: "INVALID" };
-  cookies().set(ADMIN_COOKIE, await signAdminCookie(data.user.id), {
+  const { data: cur } = await sb.auth.getUser(); // the password step already signed this admin in
+  const email = cur.user?.email?.toLowerCase();
+  if (!email || !isAdminEmail(email)) return { ok: false, error: "INVALID" };
+  const { data, error } = await sb.auth.verifyOtp({ email, token: code.data, type: "email" });
+  if (error || !isAdminEmail(data.user?.email)) return { ok: false, error: "INVALID" };
+  cookies().set(ADMIN_COOKIE, await signAdminCookie(data.user!.id), {
     httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", path: "/", maxAge: 12 * 3600,
   });
   return { ok: true };
