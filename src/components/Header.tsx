@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useTranslations, useLocale } from "next-intl";
 import { useCart, CartStoreState } from "@/lib/cart-store";
@@ -56,11 +56,24 @@ export default function Header({ loggedIn, whatsapp }: { loggedIn?: boolean; wha
 
   const [mounted, setMounted] = useState(false);
   const [menu, setMenu] = useState(false);
+  const barRef = useRef<HTMLDivElement>(null);
+  const [menuTop, setMenuTop] = useState(80);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (!menu) return;
+    const measure = () => setMenuTop(Math.round(barRef.current?.getBoundingClientRect().bottom ?? 80));
+    measure();
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, { passive: true });
+    document.body.style.overflow = "hidden"; // the page behind the menu must not scroll
+    return () => { window.removeEventListener("resize", measure); window.removeEventListener("scroll", measure); document.body.style.overflow = ""; };
+  }, [menu]);
+
+  // backdrop-blur on the header makes it the containing block of the fixed menu (menu collapsed to 80px and spilled over the page), so it is dropped while the menu is open.
   const totalQty = lines.reduce((acc: number, item: any) => acc + (item.quantity ?? item.qty ?? 0), 0);
 
   const handleLanguageToggle = () => {
@@ -70,8 +83,8 @@ export default function Header({ loggedIn, whatsapp }: { loggedIn?: boolean; wha
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-ink/80 backdrop-blur-md">
-      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+    <header className={`sticky top-0 z-50 w-full border-b border-white/5 ${menu ? "bg-ink" : "bg-ink/80 backdrop-blur-md"}`}>
+      <div ref={barRef} className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
           <span className="h-display text-3xl tracking-tighter text-cream transition-colors group-hover:text-gold">
@@ -160,7 +173,7 @@ export default function Header({ loggedIn, whatsapp }: { loggedIn?: boolean; wha
 
       {/* Mobile Menu Overlay */}
       {menu && (
-        <div className="fixed inset-0 top-20 z-40 bg-ink/95 md:hidden animate-in fade-in slide-in-from-top-5">
+        <div style={{ top: menuTop }} className="fixed inset-x-0 bottom-0 z-40 overflow-y-auto bg-ink md:hidden animate-in fade-in">
           <nav className="flex flex-col items-center justify-center gap-8 h-full pb-20">
             <Link href="/shop" onClick={() => setMenu(false)} className="text-2xl font-medium">{t("shop")}</Link>
             <Link href="/about" onClick={() => setMenu(false)} className="text-2xl font-medium">{t("about")}</Link>
