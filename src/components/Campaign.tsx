@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useLocale } from "next-intl";
 import type { Campaign } from "@/lib/campaign";
 import { suggestOffers } from "@/app/actions/coupon";
+import type { OfferHint } from "@/lib/offers";
 
 const Ctx = createContext<Campaign | null>(null);
 export const CampaignProvider = ({ value, children }: { value: Campaign | null; children: React.ReactNode }) => (
@@ -165,37 +166,84 @@ export function ShopCampaignStrip() {
   );
 }
 
-/** "Your cart qualifies for an offer" tip. In the checkout `onApply` applies the code in one tap. */
+const bottles = (n: number, size: string, isAr: boolean) => (isAr ? `${n} زجاجة ${size}` : `${n} × ${size}`);
+
+function hintText(h: OfferHint, isAr: boolean): { text: string; href: string; cta: string } {
+  if (h.kind === "pack") {
+    return {
+      href: "/pocket-pack",
+      cta: isAr ? "كمّل الباكيدج" : "Complete the pack",
+      text: isAr
+        ? `أضف ${h.need} عطر مختلف 5ML لتكمل باكيدج الجيب (7 زجاجات بـ 350 ج.م)`
+        : `Add ${h.need} more different 5ML scent${h.need > 1 ? "s" : ""} to complete the Pocket Pack (7 bottles for 350 EGP)`,
+    };
+  }
+  const parts: string[] = [];
+  if (h.type === "BUNDLE_2X100_FREE50") {
+    if (h.need100) parts.push(bottles(h.need100, "100ML", isAr));
+    if (h.need50) parts.push(bottles(h.need50, "50ML", isAr));
+    return {
+      href: `/offers/${h.slug}`,
+      cta: isAr ? "اختر زجاجاتك" : "Build offer",
+      text: isAr
+        ? `أضف ${parts.join(" و")} — وزجاجة الـ 50ML مجانًا!`
+        : `Add ${parts.join(" + ")} — and the 50ML is free!`,
+    };
+  }
+  return {
+    href: `/offers/${h.slug}`,
+    cta: isAr ? "اختر زجاجاتك" : "Build offer",
+    text: isAr
+      ? `أضف ${bottles(h.need50, "50ML", isAr)} — والثالثة بخصم 50%!`
+      : `Add ${bottles(h.need50, "50ML", isAr)} — the third is 50% off!`,
+  };
+}
+
+/** Golden Friday tips in the cart: "your cart qualifies" (apply the code) and "add X to unlock an offer" nudges. */
 export function OfferSuggestion({
   items, appliedCode, onApply,
 }: { items: { product_id: string; volume?: string; quantity?: number }[]; appliedCode?: string | null; onApply?: (code: string) => void }) {
   const isAr = useLocale() === "ar";
-  const [offers, setOffers] = useState<{ code: string; saving: number }[]>([]);
+  const [res, setRes] = useState<{ offers: { code: string; saving: number }[]; hints: OfferHint[] }>({ offers: [], hints: [] });
   const key = JSON.stringify(items);
   useEffect(() => {
     let live = true;
     const t = setTimeout(() => {
-      suggestOffers(items).then((r) => live && setOffers(r)).catch(() => {});
+      suggestOffers(items).then((r) => live && setRes(r)).catch(() => {});
     }, 400);
     return () => { live = false; clearTimeout(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
-  const best = offers.filter((o) => o.code !== appliedCode).sort((a, b) => b.saving - a.saving)[0];
-  if (!best) return null;
+  const best = res.offers.filter((o) => o.code !== appliedCode).sort((a, b) => b.saving - a.saving)[0];
+  const hints = res.hints.filter((h) => h.kind === "pack" || h.code !== appliedCode);
+  if (!best && !hints.length) return null;
   return (
-    <div className="space-y-2 border border-gold bg-gold/10 px-3 py-3 text-xs text-cream">
-      <p className="font-semibold text-gold">
-        ✦ {isAr ? `سلتك مطابقة لعرض! وفّر ${best.saving} ج.م` : `Your cart qualifies for an offer! Save ${best.saving} EGP`}
-      </p>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-cream/70">{isAr ? "استخدم الكود" : "Use code"}</span>
-        <CodeChip code={best.code} />
-        {onApply && (
-          <button type="button" onClick={() => onApply(best.code)} className="btn-gold px-4 py-1.5 text-[11px]">
-            {isAr ? "طبّق الآن" : "Apply now"}
-          </button>
-        )}
-      </div>
+    <div className="space-y-2">
+      {best && (
+        <div className="space-y-2 border border-gold bg-gold/10 px-3 py-3 text-xs text-cream">
+          <p className="font-semibold text-gold">
+            ✦ {isAr ? `سلتك مطابقة لعرض! وفّر ${best.saving} ج.م` : `Your cart qualifies for an offer! Save ${best.saving} EGP`}
+          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-cream/70">{isAr ? "استخدم الكود" : "Use code"}</span>
+            <CodeChip code={best.code} />
+            {onApply && (
+              <button type="button" onClick={() => onApply(best.code)} className="btn-gold px-4 py-1.5 text-[11px]">
+                {isAr ? "طبّق الآن" : "Apply now"}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {hints.map((h, i) => {
+        const x = hintText(h, isAr);
+        return (
+          <div key={i} className="flex items-center justify-between gap-3 border border-gold/50 bg-gold/5 px-3 py-3 text-xs text-cream">
+            <p><span className="text-gold">✦ {isAr ? "الجمعة الذهبية" : "Golden Friday"}</span> · {x.text}</p>
+            <a href={x.href} className="btn-gold shrink-0 px-3 py-1.5 text-[11px]">{x.cta}</a>
+          </div>
+        );
+      })}
     </div>
   );
 }
