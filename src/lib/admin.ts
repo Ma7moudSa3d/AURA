@@ -1,5 +1,6 @@
 import { supabaseServer } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
+import { isAdminEmail } from "./admin-emails";
 import { ADMIN_COOKIE, verifyAdminCookie } from "./admin-cookie";
 
 export const OWNER_EMAIL = "aurafragrances111@gmail.com";
@@ -13,10 +14,7 @@ export async function checkAdmin() {
 
   if (!user) return { ok: false as const, reason: "not_logged_in" as const };
 
-  const ownerEmail = process.env.OWNER_EMAIL || OWNER_EMAIL;
-  if (user.email !== ownerEmail && user.email !== OWNER_EMAIL) {
-    return { ok: false as const, reason: "not_owner" as const };
-  }
+  if (!isAdminEmail(user.email)) return { ok: false as const, reason: "not_owner" as const };
 
   const cookieStore = cookies();
   const adminCookie = cookieStore.get(ADMIN_COOKIE)?.value;
@@ -40,10 +38,7 @@ export async function requireAdmin() {
     throw new Error("UNAUTHORIZED: User not logged in");
   }
 
-  const ownerEmail = process.env.OWNER_EMAIL || OWNER_EMAIL;
-  if (user.email !== ownerEmail && user.email !== OWNER_EMAIL) {
-    throw new Error("UNAUTHORIZED: Access denied");
-  }
+  if (!isAdminEmail(user.email)) throw new Error("UNAUTHORIZED: Access denied");
 
   return user;
 }

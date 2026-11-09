@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { ADMIN_COOKIE, verifyAdminCookie } from "@/lib/admin-cookie";
 
-const OWNER = "aurafragrances111@gmail.com";
+import { isAdminEmail } from "@/lib/admin-emails";
 
 export async function middleware(req: NextRequest) {
   let res = NextResponse.next({ request: req });
@@ -32,7 +32,7 @@ export async function middleware(req: NextRequest) {
 
   // Admin area: owner email + email-OTP cookie + TOTP (aal2). Login page is the only exception.
   if (path.startsWith("/admin") && path !== "/admin/login") {
-    if (!user || user.email !== OWNER) return NextResponse.rewrite(new URL("/404", req.url));
+    if (!user || !isAdminEmail(user.email)) return NextResponse.rewrite(new URL("/404", req.url));
     const otpOk = await verifyAdminCookie(req.cookies.get(ADMIN_COOKIE)?.value, user.id);
     const { data: aal } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
     if (!otpOk || aal?.currentLevel !== "aal2") return redirect("/admin/login", false);
