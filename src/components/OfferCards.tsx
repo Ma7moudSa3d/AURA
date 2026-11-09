@@ -25,7 +25,7 @@ export function OfferCard({
 }: { href: string; art?: string | null; tileBig: string; tileSmall: string; titleEn: string; titleAr: string; bodyEn: string; bodyAr: string; code: string }) {
   const isAr = useLocale() === "ar";
   return (
-    <div className="group relative flex flex-col border border-gold/40 bg-surface p-5 text-center transition hover:border-gold">
+    <div className="group relative flex cursor-pointer flex-col border border-gold/40 bg-surface p-5 text-center transition hover:border-gold">
       <Link href={href} aria-label={isAr ? titleAr : titleEn} className="absolute inset-0 z-0" />
       <OfferArt src={art} big={tileBig} small={tileSmall} />
       <p className="text-[10px] uppercase tracking-[.35em] text-gold">✦ {isAr ? "الجمعة الذهبية" : "Golden Friday"}</p>
